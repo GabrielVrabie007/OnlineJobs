@@ -1,0 +1,65 @@
+﻿@model IEnumerable<OnlineJobs.Domain.Entities.JobPosting>
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="container mt-4">
+    <div class="text-center mb-5">
+        <h1 class="display-4">Find Your Next Opportunity</h1>
+        <p class="lead">Browse available job postings from top companies</p>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="row">
+            @foreach (var job in Model)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">@job.Title</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">@job.Company?.Name</h6>
+
+                            @if (!string.IsNullOrEmpty(job.Company?.Location))
+                            {
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-geo-alt"></i> @job.Company.Location
+                                </p>
+                            }
+
+                            <p class="card-text">@(job.Description?.Length > 100 ? job.Description.Substring(0, 100) + "..." : job.Description)</p>
+
+                            @if (job.SalaryMin.HasValue && job.SalaryMax.HasValue)
+                            {
+                                <p class="text-success mb-2">
+                                    <strong>$@job.SalaryMin.Value.ToString("N0") - $@job.SalaryMax.Value.ToString("N0")</strong>
+                                </p>
+                            }
+
+                            @if (!string.IsNullOrEmpty(job.EmploymentType))
+                            {
+                                <span class="badge bg-info text-dark me-2">@job.EmploymentType</span>
+                            }
+
+                            @if (!string.IsNullOrEmpty(job.Category))
+                            {
+                                <span class="badge bg-secondary">@job.Category</span>
+                            }
+                        </div>
+                        <div class="card-footer bg-white">
+                            <a asp-controller="Job" asp-action="Details" asp-route-id="@job.Id" class="btn btn-primary btn-sm w-100">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info text-center" role="alert">
+            <h4 class="alert-heading">No jobs available yet</h4>
+            <p>Check back soon for new opportunities!</p>
+        </div>
+    }
+</div>
