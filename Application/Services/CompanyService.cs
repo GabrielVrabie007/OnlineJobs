@@ -3,19 +3,11 @@ using OnlineJobs.Domain.Entities;
 
 namespace OnlineJobs.Application.Services
 {
-    /// <summary>
-    /// Company service implementation
-    /// Demonstrates:
-    /// - SRP: Single responsibility - company management
-    /// - DIP: Depends on IRepository abstraction
-    /// - Separation of business logic from data access
-    /// </summary>
     public class CompanyService : ICompanyService
     {
         private readonly IRepository<Company> _companyRepository;
         private readonly IRepository<JobPosting> _jobRepository;
 
-        // Constructor injection (DIP)
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<JobPosting> jobRepository)
@@ -26,18 +18,15 @@ namespace OnlineJobs.Application.Services
 
         public async Task<Company> CreateCompanyAsync(string name, string location)
         {
-            // Validation
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Company name cannot be empty");
 
-            // Check for duplicate
             var existing = await _companyRepository.FindAsync(c =>
                 c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
             if (existing.Any())
                 throw new InvalidOperationException("A company with this name already exists");
 
-            // Create company
             var company = new Company(name, location);
             await _companyRepository.AddAsync(company);
 
@@ -64,7 +53,6 @@ namespace OnlineJobs.Application.Services
 
         public async Task DeleteCompanyAsync(Guid companyId)
         {
-            // Check if company has active jobs
             var activeJobCount = await GetActiveJobCountAsync(companyId);
             if (activeJobCount > 0)
                 throw new InvalidOperationException("Cannot delete company with active job postings");
@@ -87,7 +75,6 @@ namespace OnlineJobs.Application.Services
             if (company == null)
                 return null;
 
-            // Load jobs for this company
             var jobs = await _jobRepository.FindAsync(j => j.CompanyId == companyId);
             company.JobPostings = jobs.ToList();
 

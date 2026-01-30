@@ -1,9 +1,5 @@
 namespace OnlineJobs.Domain.Enums
 {
-    /// <summary>
-    /// Defines the status of a job application
-    /// Follows OCP: Extensible for new workflow states
-    /// </summary>
     public enum ApplicationStatus
     {
         Submitted = 1,

@@ -3,18 +3,8 @@ using System.Reflection;
 
 namespace OnlineJobs.Infrastructure.Repositories
 {
-    /// <summary>
-    /// Generic in-memory repository implementation
-    /// Demonstrates:
-    /// - DIP: Implements IRepository abstraction
-    /// - SRP: Single responsibility - data storage and retrieval
-    /// - OCP: Can be extended or replaced without modifying dependent code
-    /// - Generic implementation promotes DRY principle
-    /// </summary>
-    /// <typeparam name="T">Entity type</typeparam>
     public class InMemoryRepository<T> : IRepository<T> where T : class
     {
-        // In-memory storage - thread-safe list
         protected readonly List<T> _dataStore;
         private readonly object _lock = new object();
 
@@ -112,8 +102,6 @@ namespace OnlineJobs.Infrastructure.Repositories
             }
         }
 
-        // Helper method to extract Id property using reflection
-        // Assumes all entities have a public Guid Id property
         protected Guid GetId(T entity)
         {
             var property = typeof(T).GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);

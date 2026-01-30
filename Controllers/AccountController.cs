@@ -5,20 +5,11 @@ using System.Text.Json;
 
 namespace OnlineJobs.Web.Controllers
 {
-    /// <summary>
-    /// Account controller
-    /// Demonstrates:
-    /// - SRP: Single responsibility - user authentication and registration
-    /// - DIP: Depends on IUserService and ICompanyService abstractions
-    /// - Thin controller pattern - business logic in services
-    /// - Proper separation of concerns
-    /// </summary>
     public class AccountController : Controller
     {
         private readonly IUserService _userService;
         private readonly ICompanyService _companyService;
 
-        // Constructor injection (DIP)
         public AccountController(IUserService userService, ICompanyService companyService)
         {
             _userService = userService ?? throw new ArgumentNullException(nameof(userService));
@@ -43,7 +34,6 @@ namespace OnlineJobs.Web.Controllers
             {
                 var user = await _userService.LoginAsync(model.Email, model.Password);
 
-                // Store user info in session (simple authentication for demo)
                 HttpContext.Session.SetString("UserId", user.Id.ToString());
                 HttpContext.Session.SetString("UserEmail", user.Email);
                 HttpContext.Session.SetString("UserName", user.GetFullName());
@@ -66,7 +56,6 @@ namespace OnlineJobs.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> Register()
         {
-            // Get companies for employer registration
             var companies = await _companyService.GetAllCompaniesAsync();
             ViewBag.Companies = companies;
             return View();
@@ -136,13 +125,11 @@ namespace OnlineJobs.Web.Controllers
             return View();
         }
 
-        // Helper method to check if user is logged in
         private bool IsUserLoggedIn()
         {
             return !string.IsNullOrEmpty(HttpContext.Session.GetString("UserId"));
         }
 
-        // Helper method to get current user ID
         private Guid? GetCurrentUserId()
         {
             var userIdString = HttpContext.Session.GetString("UserId");

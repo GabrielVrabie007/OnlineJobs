@@ -2,13 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OnlineJobs.Web.Models
 {
-    /// <summary>
-    /// Registration view model
-    /// Demonstrates:
-    /// - SRP: Single responsibility - capturing registration data
-    /// - Data validation
-    /// - ViewModel pattern
-    /// </summary>
+
     public class RegisterViewModel
     {
         [Required(ErrorMessage = "First name is required")]
@@ -34,9 +28,8 @@ namespace OnlineJobs.Web.Models
         public string ConfirmPassword { get; set; }
 
         [Required(ErrorMessage = "Please select user type")]
-        public string UserType { get; set; } // "JobSeeker" or "Employer"
+        public string UserType { get; set; }
 
-        // Employer-specific field
         public Guid? CompanyId { get; set; }
     }
 }

@@ -5,21 +5,12 @@ using OnlineJobs.Web.Models;
 
 namespace OnlineJobs.Web.Controllers
 {
-    /// <summary>
-    /// Application controller
-    /// Demonstrates:
-    /// - SRP: Single responsibility - job application management
-    /// - DIP: Depends on service abstractions
-    /// - Thin controller pattern
-    /// - Proper authorization checks
-    /// </summary>
     public class ApplicationController : Controller
     {
         private readonly IApplicationService _applicationService;
         private readonly IJobService _jobService;
         private readonly ICompanyService _companyService;
 
-        // Constructor injection (DIP)
         public ApplicationController(
             IApplicationService applicationService,
             IJobService jobService,
@@ -30,7 +21,6 @@ namespace OnlineJobs.Web.Controllers
             _companyService = companyService ?? throw new ArgumentNullException(nameof(companyService));
         }
 
-        // GET: Application/Apply/5
         [HttpGet]
         public async Task<IActionResult> Apply(Guid jobId)
         {
@@ -44,7 +34,6 @@ namespace OnlineJobs.Web.Controllers
             if (!userId.HasValue)
                 return RedirectToAction("Login", "Account");
 
-            // Check if already applied
             if (await _applicationService.HasAlreadyAppliedAsync(jobId, userId.Value))
             {
                 TempData["ErrorMessage"] = "You have already applied to this job.";
@@ -67,7 +56,6 @@ namespace OnlineJobs.Web.Controllers
             return View(model);
         }
 
-        // POST: Application/Apply
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Apply(ApplyJobViewModel model)
@@ -103,7 +91,6 @@ namespace OnlineJobs.Web.Controllers
             }
         }
 
-        // GET: Application/MyApplications
         public async Task<IActionResult> MyApplications()
         {
             if (!IsJobSeeker())
@@ -118,7 +105,6 @@ namespace OnlineJobs.Web.Controllers
 
             var applications = await _applicationService.GetApplicationsByJobSeekerAsync(userId.Value);
 
-            // Load related job and company data
             var enrichedApplications = new List<(Domain.Entities.JobApplication Application, Domain.Entities.JobPosting? Job, Domain.Entities.Company? Company)>();
 
             foreach (var app in applications)
@@ -131,7 +117,6 @@ namespace OnlineJobs.Web.Controllers
             return View(enrichedApplications);
         }
 
-        // GET: Application/ReceivedApplications
         public async Task<IActionResult> ReceivedApplications()
         {
             if (!IsEmployer())
@@ -146,7 +131,6 @@ namespace OnlineJobs.Web.Controllers
 
             var applications = await _applicationService.GetApplicationsByEmployerAsync(employerId.Value);
 
-            // Load related data
             var enrichedApplications = new List<(Domain.Entities.JobApplication Application, Domain.Entities.JobPosting? Job, Domain.Entities.JobSeeker JobSeeker)>();
 
             foreach (var app in applications)
@@ -159,7 +143,6 @@ namespace OnlineJobs.Web.Controllers
             return View(enrichedApplications);
         }
 
-        // GET: Application/Details/5
         public async Task<IActionResult> Details(Guid id)
         {
             if (!IsUserLoggedIn())
@@ -169,7 +152,6 @@ namespace OnlineJobs.Web.Controllers
             if (application == null)
                 return NotFound();
 
-            // Authorization check
             var userId = GetCurrentUserId();
             if (!userId.HasValue)
                 return RedirectToAction("Login", "Account");
@@ -193,7 +175,6 @@ namespace OnlineJobs.Web.Controllers
             return View(application);
         }
 
-        // POST: Application/Withdraw/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Withdraw(Guid id)
@@ -207,7 +188,6 @@ namespace OnlineJobs.Web.Controllers
                 if (application == null)
                     return NotFound();
 
-                // Verify ownership
                 var userId = GetCurrentUserId();
                 if (!userId.HasValue)
                     return RedirectToAction("Login", "Account");
@@ -226,7 +206,6 @@ namespace OnlineJobs.Web.Controllers
             return RedirectToAction("MyApplications");
         }
 
-        // POST: Application/UpdateStatus/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(Guid id, string status)
@@ -265,7 +244,6 @@ namespace OnlineJobs.Web.Controllers
             return RedirectToAction("ReceivedApplications");
         }
 
-        // Helper methods
         private bool IsUserLoggedIn()
         {
             return !string.IsNullOrEmpty(HttpContext.Session.GetString("UserId"));
@@ -293,8 +271,6 @@ namespace OnlineJobs.Web.Controllers
 
         private Task<Domain.Entities.JobSeeker> GetJobSeekerByIdAsync(Guid id)
         {
-            // This should use IUserService, but for simplicity we'll create a workaround
-            // In production, expose this through IUserService
             return Task.FromResult(new Domain.Entities.JobSeeker(id));
         }
     }

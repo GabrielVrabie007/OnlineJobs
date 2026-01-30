@@ -1,4 +1,4 @@
-# Online Jobs Platform - Architecture Documentation
+ # Online Jobs Platform - Architecture Documentation
 
 ## Overview
 This application demonstrates SOLID principles and OOP concepts in a maintainable, scalable online jobs platform built with ASP.NET Core MVC.

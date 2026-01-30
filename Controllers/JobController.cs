@@ -5,21 +5,12 @@ using OnlineJobs.Web.Models;
 
 namespace OnlineJobs.Web.Controllers
 {
-    /// <summary>
-    /// Job controller
-    /// Demonstrates:
-    /// - SRP: Single responsibility - job posting management
-    /// - DIP: Depends on service abstractions
-    /// - Thin controller - business logic delegated to services
-    /// - Proper error handling and validation
-    /// </summary>
     public class JobController : Controller
     {
         private readonly IJobService _jobService;
         private readonly ICompanyService _companyService;
         private readonly IApplicationService _applicationService;
 
-        // Constructor injection (DIP)
         public JobController(
             IJobService jobService,
             ICompanyService companyService,
@@ -30,7 +21,6 @@ namespace OnlineJobs.Web.Controllers
             _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
         }
 
-        // GET: Job/Index
         public async Task<IActionResult> Index(string searchTerm = null)
         {
             IEnumerable<Domain.Entities.JobPosting> jobs;
@@ -48,7 +38,6 @@ namespace OnlineJobs.Web.Controllers
             return View(jobs);
         }
 
-        // GET: Job/Details/5
         public async Task<IActionResult> Details(Guid id)
         {
             var job = await _jobService.GetJobByIdAsync(id);
@@ -58,11 +47,9 @@ namespace OnlineJobs.Web.Controllers
             var company = await _companyService.GetCompanyByIdAsync(job.CompanyId);
             ViewBag.Company = company;
 
-            // Get application count
             var applicationCount = await _applicationService.GetApplicationCountForJobAsync(id);
             ViewBag.ApplicationCount = applicationCount;
 
-            // Check if current user has already applied
             var userId = GetCurrentUserId();
             if (userId.HasValue)
             {
@@ -73,7 +60,6 @@ namespace OnlineJobs.Web.Controllers
             return View(job);
         }
 
-        // GET: Job/Create
         public async Task<IActionResult> Create()
         {
             if (!IsEmployer())
@@ -88,7 +74,6 @@ namespace OnlineJobs.Web.Controllers
             return View();
         }
 
-        // POST: Job/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(CreateJobViewModel model)
@@ -119,7 +104,6 @@ namespace OnlineJobs.Web.Controllers
                     model.CompanyId
                 );
 
-                // Update additional properties
                 job.Requirements = model.Requirements;
                 job.SalaryMin = model.SalaryMin;
                 job.SalaryMax = model.SalaryMax;
@@ -129,7 +113,6 @@ namespace OnlineJobs.Web.Controllers
 
                 await _jobService.UpdateJobAsync(job);
 
-                // Auto-publish the job
                 await _jobService.PublishJobAsync(job.Id);
 
                 TempData["SuccessMessage"] = "Job posted successfully!";
@@ -144,7 +127,6 @@ namespace OnlineJobs.Web.Controllers
             }
         }
 
-        // GET: Job/MyJobs
         public async Task<IActionResult> MyJobs()
         {
             if (!IsEmployer())
@@ -162,7 +144,6 @@ namespace OnlineJobs.Web.Controllers
             return View(jobs);
         }
 
-        // POST: Job/Close/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Close(Guid id)
@@ -183,7 +164,6 @@ namespace OnlineJobs.Web.Controllers
             return RedirectToAction("MyJobs");
         }
 
-        // Helper methods
         private bool IsUserLoggedIn()
         {
             return !string.IsNullOrEmpty(HttpContext.Session.GetString("UserId"));

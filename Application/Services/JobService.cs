@@ -5,19 +5,11 @@ using OnlineJobs.Application.Interfaces;
 
 namespace OnlineJobs.Application.Services
 {
-    /// <summary>
-    /// Job service implementation
-    /// Demonstrates:
-    /// - SRP: Single responsibility - job posting management
-    /// - DIP: Depends on IRepository abstraction
-    /// - Business logic encapsulation
-    /// </summary>
     public class JobService : IJobService
     {
         private readonly IRepository<JobPosting> _jobRepository;
         private readonly IRepository<Employer> _employerRepository;
 
-        // Constructor injection (DIP)
         public JobService(
             IRepository<JobPosting> jobRepository,
             IRepository<Employer> employerRepository)
@@ -28,7 +20,6 @@ namespace OnlineJobs.Application.Services
 
         public async Task<JobPosting> CreateJobAsync(string title, string description, Guid employerId, Guid companyId)
         {
-            // Validation
             var employer = await _employerRepository.GetByIdAsync(employerId);
             if (employer == null)
                 throw new InvalidOperationException("Employer not found");
@@ -36,7 +27,6 @@ namespace OnlineJobs.Application.Services
             if (!employer.CanPostJobs())
                 throw new InvalidOperationException("Employer is not authorized to post jobs");
 
-            // Create job posting
             var job = new JobPosting(title, description, employerId, companyId);
             await _jobRepository.AddAsync(job);
 

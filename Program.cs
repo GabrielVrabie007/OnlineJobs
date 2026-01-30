@@ -4,6 +4,7 @@ using OnlineJobs.Domain.Entities;
 using OnlineJobs.Infrastructure.Repositories;
 
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();

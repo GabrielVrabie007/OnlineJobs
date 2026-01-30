@@ -4,20 +4,12 @@ using OnlineJobs.Domain.Enums;
 
 namespace OnlineJobs.Application.Services
 {
-    /// <summary>
-    /// Application service implementation
-    /// Demonstrates:
-    /// - SRP: Single responsibility - job application workflow management
-    /// - DIP: Depends on IRepository abstractions
-    /// - Business logic for application state transitions
-    /// </summary>
     public class ApplicationService : IApplicationService
     {
         private readonly IRepository<JobApplication> _applicationRepository;
         private readonly IRepository<JobPosting> _jobRepository;
         private readonly IRepository<JobSeeker> _jobSeekerRepository;
 
-        // Constructor injection (DIP)
         public ApplicationService(
             IRepository<JobApplication> applicationRepository,
             IRepository<JobPosting> jobRepository,
@@ -30,7 +22,6 @@ namespace OnlineJobs.Application.Services
 
         public async Task<JobApplication> SubmitApplicationAsync(Guid jobPostingId, Guid jobSeekerId, string coverLetter)
         {
-            // Validation
             var job = await _jobRepository.GetByIdAsync(jobPostingId);
             if (job == null)
                 throw new InvalidOperationException("Job posting not found");
@@ -45,11 +36,9 @@ namespace OnlineJobs.Application.Services
             if (!jobSeeker.CanApplyToJobs())
                 throw new InvalidOperationException("Job seeker is not authorized to apply");
 
-            // Check for duplicate application
             if (await HasAlreadyAppliedAsync(jobPostingId, jobSeekerId))
                 throw new InvalidOperationException("You have already applied to this job");
 
-            // Create application
             var application = new JobApplication(jobPostingId, jobSeekerId, coverLetter);
             await _applicationRepository.AddAsync(application);
 
@@ -78,11 +67,9 @@ namespace OnlineJobs.Application.Services
 
         public async Task<IEnumerable<JobApplication>> GetApplicationsByEmployerAsync(Guid employerId)
         {
-            // Get all jobs by employer
             var employerJobs = await _jobRepository.FindAsync(j => j.EmployerId == employerId);
             var jobIds = employerJobs.Select(j => j.Id).ToHashSet();
 
-            // Get applications for those jobs
             return await _applicationRepository.FindAsync(a => jobIds.Contains(a.JobPostingId));
         }
 

@@ -2,13 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OnlineJobs.Web.Models
 {
-    /// <summary>
-    /// Create job view model
-    /// Demonstrates:
-    /// - SRP: Single responsibility - capturing job creation data
-    /// - Validation logic separated from domain
-    /// - ViewModel pattern
-    /// </summary>
+
     public class CreateJobViewModel
     {
         [Required(ErrorMessage = "Job title is required")]

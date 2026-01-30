@@ -1,9 +1,5 @@
 namespace OnlineJobs.Domain.Enums
 {
-    /// <summary>
-    /// Defines the status of a job posting
-    /// Follows OCP: New statuses can be added without modifying existing functionality
-    /// </summary>
     public enum JobStatus
     {
         Draft = 1,

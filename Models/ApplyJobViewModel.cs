@@ -2,13 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OnlineJobs.Web.Models
 {
-    /// <summary>
-    /// Apply job view model
-    /// Demonstrates:
-    /// - SRP: Single responsibility - capturing application data
-    /// - Validation at presentation layer
-    /// - ViewModel pattern
-    /// </summary>
+
     public class ApplyJobViewModel
     {
         public Guid JobPostingId { get; set; }

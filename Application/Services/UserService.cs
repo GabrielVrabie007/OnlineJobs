@@ -3,21 +3,12 @@ using OnlineJobs.Domain.Entities;
 
 namespace OnlineJobs.Application.Services
 {
-    /// <summary>
-    /// User service implementation
-    /// Demonstrates:
-    /// - SRP: Single responsibility - user authentication and management
-    /// - DIP: Depends on IRepository abstraction, not concrete implementation
-    /// - Constructor injection for dependencies
-    /// - Business logic separation from data access
-    /// </summary>
     public class UserService : IUserService
     {
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<JobSeeker> _jobSeekerRepository;
         private readonly IRepository<Employer> _employerRepository;
 
-        // Constructor injection (DIP)
         public UserService(
             IRepository<User> userRepository,
             IRepository<JobSeeker> jobSeekerRepository,
@@ -30,14 +21,12 @@ namespace OnlineJobs.Application.Services
 
         public async Task<User> RegisterJobSeekerAsync(string email, string firstName, string lastName, string password)
         {
-            // Validation
             if (await GetUserByEmailAsync(email) != null)
                 throw new InvalidOperationException("User with this email already exists");
 
-            // Create job seeker
             var jobSeeker = new JobSeeker(email, firstName, lastName)
             {
-                PasswordHash = HashPassword(password) // Simple hash for demo
+                PasswordHash = HashPassword(password)
             };
 
             await _jobSeekerRepository.AddAsync(jobSeeker);
@@ -48,11 +37,9 @@ namespace OnlineJobs.Application.Services
 
         public async Task<User> RegisterEmployerAsync(string email, string firstName, string lastName, string password, Guid? companyId = null)
         {
-            // Validation
             if (await GetUserByEmailAsync(email) != null)
                 throw new InvalidOperationException("User with this email already exists");
 
-            // Create employer
             var employer = new Employer(email, firstName, lastName)
             {
                 PasswordHash = HashPassword(password),
@@ -110,7 +97,6 @@ namespace OnlineJobs.Application.Services
 
             await _userRepository.UpdateAsync(user);
 
-            // Update in specific repository based on type
             if (user is JobSeeker jobSeeker)
                 await _jobSeekerRepository.UpdateAsync(jobSeeker);
             else if (user is Employer employer)
@@ -142,10 +128,8 @@ namespace OnlineJobs.Application.Services
             return await _employerRepository.GetAllAsync();
         }
 
-        // Private helper methods for password hashing (simplified for demo)
         private string HashPassword(string password)
         {
-            // In production, use BCrypt, Argon2, or ASP.NET Core Identity
             return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(password));
         }
 

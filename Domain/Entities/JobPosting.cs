@@ -2,13 +2,6 @@ using OnlineJobs.Domain.Enums;
 
 namespace OnlineJobs.Domain.Entities
 {
-    /// <summary>
-    /// JobPosting entity
-    /// Demonstrates:
-    /// - ENCAPSULATION: Private fields with validated properties
-    /// - SRP: Single responsibility - managing job posting information
-    /// - Proper state management through methods
-    /// </summary>
     public class JobPosting
     {
         private string _title;
@@ -44,29 +37,25 @@ namespace OnlineJobs.Domain.Entities
         public decimal? SalaryMin { get; set; }
         public decimal? SalaryMax { get; set; }
         public string Location { get; set; }
-        public string EmploymentType { get; set; } // Full-time, Part-time, Contract, etc.
-        public string Category { get; set; } // IT, Marketing, Sales, etc.
+        public string EmploymentType { get; set; }
+        public string Category { get; set; }
 
-        // Foreign keys
         public Guid EmployerId { get; set; }
         public Guid CompanyId { get; set; }
 
-        // Navigation properties
         public Employer Employer { get; set; }
         public Company Company { get; set; }
         public List<JobApplication> Applications { get; set; }
 
-        // Status and timestamps
         public JobStatus Status { get; set; }
         public DateTime PostedDate { get; private set; }
         public DateTime? ClosedDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
 
-        // Constructor
         public JobPosting(string title, string description, Guid employerId, Guid companyId)
         {
             Id = Guid.NewGuid();
-            Title = title; // Uses property setter with validation
+            Title = title;
             Description = description;
             EmployerId = employerId;
             CompanyId = companyId;
@@ -75,7 +64,6 @@ namespace OnlineJobs.Domain.Entities
             Applications = new List<JobApplication>();
         }
 
-        // Parameterless constructor
         public JobPosting()
         {
             Id = Guid.NewGuid();
@@ -84,7 +72,6 @@ namespace OnlineJobs.Domain.Entities
             Applications = new List<JobApplication>();
         }
 
-        // Business methods for state management
         public void Publish()
         {
             if (Status == JobStatus.Draft)
