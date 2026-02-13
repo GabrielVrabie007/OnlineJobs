@@ -3,7 +3,7 @@ using OnlineJobs.Application.Interfaces;
 using OnlineJobs.Domain.Enums;
 using OnlineJobs.Web.Models;
 
-namespace OnlineJobs.Web.Controllers
+namespace OnlineJobs.Controllers
 {
     public class JobController : Controller
     {

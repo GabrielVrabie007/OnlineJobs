@@ -28,6 +28,7 @@ namespace OnlineJobs.Domain.Entities
         public List<Employer> Employers { get; set; }
 
         public Company(string name, string location)
+        /// Overloading
         {
             Id = Guid.NewGuid();
             Name = name;

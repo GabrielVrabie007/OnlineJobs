@@ -29,6 +29,12 @@ builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 
+
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<JobService>();
+builder.Services.AddScoped<ApplicationService>();
+builder.Services.AddScoped<CompanyService>();
+
 var app = builder.Build();
 
 await SeedDataAsync(app.Services);
@@ -56,7 +62,8 @@ async Task SeedDataAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-    var companyService = scope.ServiceProvider.GetRequiredService<ICompanyService>();
+
+    var companyService = scope.ServiceProvider.GetRequiredService<CompanyService>();
     var jobService = scope.ServiceProvider.GetRequiredService<IJobService>();
 
     try

@@ -30,9 +30,15 @@ namespace OnlineJobs.Application.Services
             };
 
             await _jobSeekerRepository.AddAsync(jobSeeker);
-            await _userRepository.AddAsync(jobSeeker);
 
-            return jobSeeker;
+            // Create corresponding User entity
+            var user = new User(email, firstName, lastName)
+            {
+                PasswordHash = HashPassword(password)
+            };
+            await _userRepository.AddAsync(user);
+
+            return user;
         }
 
         public async Task<User> RegisterEmployerAsync(string email, string firstName, string lastName, string password, Guid? companyId = null)
@@ -47,9 +53,15 @@ namespace OnlineJobs.Application.Services
             };
 
             await _employerRepository.AddAsync(employer);
-            await _userRepository.AddAsync(employer);
 
-            return employer;
+            // Create corresponding User entity
+            var user = new User(email, firstName, lastName)
+            {
+                PasswordHash = HashPassword(password)
+            };
+            await _userRepository.AddAsync(user);
+
+            return user;
         }
 
         public async Task<User> LoginAsync(string email, string password)
@@ -96,11 +108,6 @@ namespace OnlineJobs.Application.Services
                 throw new ArgumentNullException(nameof(user));
 
             await _userRepository.UpdateAsync(user);
-
-            if (user is JobSeeker jobSeeker)
-                await _jobSeekerRepository.UpdateAsync(jobSeeker);
-            else if (user is Employer employer)
-                await _employerRepository.UpdateAsync(employer);
         }
 
         public async Task DeleteUserAsync(Guid userId)

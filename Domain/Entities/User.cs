@@ -2,7 +2,7 @@ using OnlineJobs.Domain.Enums;
 
 namespace OnlineJobs.Domain.Entities
 {
-    public abstract class User
+    public class User
     {
         private string _email;
         private string _firstName;
@@ -52,9 +52,10 @@ namespace OnlineJobs.Domain.Entities
         public DateTime CreatedAt { get; private set; }
         public DateTime? LastLoginAt { get; set; }
         public bool IsActive { get; set; }
-        public abstract UserType UserType { get; }
+        public string? PhoneNumber { get; set; }
+        public UserType UserType { get; set; }
 
-        protected User(string email, string firstName, string lastName)
+        public User(string email, string firstName, string lastName)
         {
             Id = Guid.NewGuid();
             Email = email;
@@ -64,14 +65,14 @@ namespace OnlineJobs.Domain.Entities
             IsActive = true;
         }
 
-        protected User()
+        public User()
         {
             Id = Guid.NewGuid();
             CreatedAt = DateTime.UtcNow;
             IsActive = true;
         }
 
-        protected User(Guid id)
+        public User(Guid id)
         {
             Id = id;
             CreatedAt = DateTime.UtcNow;
@@ -83,7 +84,7 @@ namespace OnlineJobs.Domain.Entities
             return $"{FirstName} {LastName}";
         }
 
-        public virtual string GetDisplayInfo()
+        public string GetDisplayInfo()
         {
             return $"{GetFullName()} ({Email})";
         }
@@ -91,16 +92,6 @@ namespace OnlineJobs.Domain.Entities
         public void UpdateLastLogin()
         {
             LastLoginAt = DateTime.UtcNow;
-        }
-
-        public virtual bool CanPostJobs()
-        {
-            return false;
-        }
-
-        public virtual bool CanApplyToJobs()
-        {
-            return false;
         }
     }
 }

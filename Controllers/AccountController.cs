@@ -3,7 +3,7 @@ using OnlineJobs.Application.Interfaces;
 using OnlineJobs.Web.Models;
 using System.Text.Json;
 
-namespace OnlineJobs.Web.Controllers
+namespace OnlineJobs.Controllers
 {
     public class AccountController : Controller
     {

@@ -1,7 +1,6 @@
 using OnlineJobs.Application.Interfaces;
 using OnlineJobs.Domain.Entities;
 using OnlineJobs.Domain.Enums;
-using OnlineJobs.Application.Interfaces;
 
 namespace OnlineJobs.Application.Services
 {

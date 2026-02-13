@@ -1,4 +1,4 @@
-# SOLID Principles - Detailed Implementation Guide
+exitanalyze # SOLID Principles - Detailed Implementation Guide
 
 ## Table of Contents
 1. [Single Responsibility Principle (SRP)](#1-single-responsibility-principle-srp)

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using OnlineJobs.Application.Interfaces;
 
-namespace OnlineJobs.Web.Controllers
+namespace OnlineJobs.Controllers
 {
     public class HomeController : Controller
     {
