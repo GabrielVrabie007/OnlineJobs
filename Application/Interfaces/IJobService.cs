@@ -1,4 +1,5 @@
 using OnlineJobs.Domain.Entities;
+using OnlineJobs.Application.Factories;
 
 namespace OnlineJobs.Application.Interfaces
 {
@@ -13,5 +14,6 @@ namespace OnlineJobs.Application.Interfaces
         Task CloseJobAsync(Guid jobId);
         Task<IEnumerable<JobPosting>> SearchByTitleAsync(string title);
         Task<IEnumerable<JobPosting>> GetJobsByEmployerAsync(Guid employerId);
+        Task<IEnumerable<JobPosting>> SearchJobsAsync(string searchTerm, JobSearchStrategyFactory.SearchType searchType);
     }
 }

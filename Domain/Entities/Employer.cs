@@ -4,7 +4,6 @@ namespace OnlineJobs.Domain.Entities
 {
     public class Employer : User
     {
-        // Properties from User class (duplicated)
         private string _email;
         private string _firstName;
         private string _lastName;
@@ -90,9 +89,10 @@ namespace OnlineJobs.Domain.Entities
             JobPostings = new List<JobPosting>();
         }
 
-        // Methods from User class (duplicated)
         public string GetFullName()
+        
         {
+            
             return $"{FirstName} {LastName}";
         }
 

@@ -1,4 +1,5 @@
 using OnlineJobs.Application.Interfaces;
+using OnlineJobs.Application.Factories;
 using OnlineJobs.Domain.Entities;
 using OnlineJobs.Domain.Enums;
 
@@ -8,6 +9,7 @@ namespace OnlineJobs.Application.Services
     {
         private readonly IRepository<JobPosting> _jobRepository;
         private readonly IRepository<Employer> _employerRepository;
+        private readonly JobSearchStrategyFactory _searchStrategyFactory;
 
         public JobService(
             IRepository<JobPosting> jobRepository,
@@ -15,6 +17,7 @@ namespace OnlineJobs.Application.Services
         {
             _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
             _employerRepository = employerRepository ?? throw new ArgumentNullException(nameof(employerRepository));
+            _searchStrategyFactory = new JobSearchStrategyFactory();
         }
 
         public async Task<JobPosting> CreateJobAsync(string title, string description, Guid employerId, Guid companyId)
@@ -123,6 +126,25 @@ namespace OnlineJobs.Application.Services
         {
             var activeJobs = await GetActiveJobsAsync();
             return activeJobs.Count();
+        }
+
+        /// <summary>
+        /// Advanced search using Factory Method Pattern.
+        /// Demonstrates how Factory Method creates appropriate search strategy at runtime.
+        /// </summary>
+        public async Task<IEnumerable<JobPosting>> SearchJobsAsync(string searchTerm, JobSearchStrategyFactory.SearchType searchType)
+        {
+            // Factory Method Pattern in action:
+            // 1. Factory creates the appropriate strategy based on search type
+            var searchStrategy = _searchStrategyFactory.CreateSearchStrategy(searchType);
+
+            // 2. Get all active jobs
+            var allJobs = await GetActiveJobsAsync();
+
+            // 3. Apply the strategy to filter jobs
+            var results = await searchStrategy.SearchAsync(allJobs, searchTerm);
+
+            return results;
         }
     }
 }

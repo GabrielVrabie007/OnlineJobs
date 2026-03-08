@@ -33,6 +33,7 @@ namespace OnlineJobs.Application.Services
             return company;
         }
 
+    
         public async Task<Company> GetCompanyByIdAsync(Guid companyId)
         {
             return await _companyRepository.GetByIdAsync(companyId);

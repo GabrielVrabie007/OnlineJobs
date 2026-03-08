@@ -4,7 +4,6 @@ namespace OnlineJobs.Domain.Entities
 {
     public class JobSeeker : User
     {
-        // Properties from User class (duplicated)
         private string _email;
         private string _firstName;
         private string _lastName;
@@ -56,7 +55,6 @@ namespace OnlineJobs.Domain.Entities
         public string? PhoneNumber { get; set; }
         public UserType UserType => UserType.JobSeeker;
 
-        // JobSeeker-specific properties
         public string Resume { get; set; }
         public string Skills { get; set; }
         public string Address { get; set; }
@@ -74,7 +72,7 @@ namespace OnlineJobs.Domain.Entities
             IsActive = true;
             Applications = new List<JobApplication>();
         }
-
+    
         public JobSeeker()
         {
             Id = Guid.NewGuid();
@@ -91,7 +89,6 @@ namespace OnlineJobs.Domain.Entities
             Applications = new List<JobApplication>();
         }
 
-        // Methods from User class (duplicated)
         public string GetFullName()
         {
             return $"{FirstName} {LastName}";
@@ -107,7 +104,6 @@ namespace OnlineJobs.Domain.Entities
             LastLoginAt = DateTime.UtcNow;
         }
 
-        // JobSeeker-specific methods
         public bool CanApplyToJobs()
         {
             return IsActive;

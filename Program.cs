@@ -28,6 +28,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IDocumentGenerationService, DocumentGenerationService>(); // Abstract Factory Pattern
 
 
 builder.Services.AddScoped<UserService>();
