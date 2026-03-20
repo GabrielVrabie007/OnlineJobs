@@ -1,13 +1,14 @@
 using OnlineJobs.Domain.Enums;
+using OnlineJobs.Domain.Interfaces;
 
 namespace OnlineJobs.Domain.Entities
 {
-    public class JobPosting
+    public class JobPosting : IPrototype<JobPosting>
     {
         private string _title;
         private string _description;
 
-        public Guid Id { get; private set; }
+        public Guid Id { get; set; }
 
         public string Title
         {
@@ -48,7 +49,7 @@ namespace OnlineJobs.Domain.Entities
         public List<JobApplication> Applications { get; set; }
 
         public JobStatus Status { get; set; }
-        public DateTime PostedDate { get; private set; }
+        public DateTime PostedDate { get; set; }
         public DateTime? ClosedDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
 
@@ -114,6 +115,91 @@ namespace OnlineJobs.Domain.Entities
             if (SalaryMax.HasValue)
                 return $"Up to ${SalaryMax:N0}";
             return "Salary not disclosed";
+        }
+
+        /// <summary>
+        /// Creates a deep copy of the JobPosting.
+        /// Useful when employers want to create similar job postings.
+        ///
+        /// Deep Copy Behavior:
+        /// - Creates new JobPosting instance with new ID
+        /// - Copies all property values
+        /// - Creates new empty Applications list (applications are not cloned)
+        /// - Resets status to Draft
+        /// - Sets new PostedDate
+        /// - Preserves same EmployerId and CompanyId
+        /// - Employer and Company navigation properties are set to null (should be loaded separately)
+        /// </summary>
+        /// <returns>A new JobPosting instance with copied values</returns>
+        public JobPosting Clone()
+        {
+            var clonedJob = new JobPosting
+            {
+                // New identity
+                Id = Guid.NewGuid(),
+
+                // Copy job details
+                Title = this.Title,
+                Description = this.Description,
+                Requirements = this.Requirements,
+                SalaryMin = this.SalaryMin,
+                SalaryMax = this.SalaryMax,
+                Location = this.Location,
+                EmploymentType = this.EmploymentType,
+                Category = this.Category,
+
+                // Copy employer/company references
+                EmployerId = this.EmployerId,
+                CompanyId = this.CompanyId,
+
+                // Reset state for new posting
+                Status = JobStatus.Draft,
+                PostedDate = DateTime.UtcNow,
+                ClosedDate = null,
+                ExpiryDate = this.ExpiryDate, // Can copy expiry logic
+
+                // New empty collections (deep copy - don't clone applications)
+                Applications = new List<JobApplication>(),
+
+                // Navigation properties set to null - should be loaded from repository
+                Employer = null,
+                Company = null
+            };
+
+            return clonedJob;
+        }
+
+        /// <summary>
+        /// Creates a shallow copy of the JobPosting.
+        /// Shares the same collections (Applications list).
+        /// Generally not recommended - use Clone() instead for safety.
+        /// </summary>
+        /// <returns>A shallow copy of the JobPosting</returns>
+        public JobPosting ShallowCopy()
+        {
+            return (JobPosting)this.MemberwiseClone();
+        }
+
+        /// <summary>
+        /// Creates a clone with a new title.
+        /// Convenience method for creating similar jobs with different titles.
+        /// </summary>
+        public JobPosting CloneWithNewTitle(string newTitle)
+        {
+            var clone = this.Clone();
+            clone.Title = newTitle;
+            return clone;
+        }
+
+        /// <summary>
+        /// Creates a clone with modifications.
+        /// Allows customization via action delegate.
+        /// </summary>
+        public JobPosting CloneWith(Action<JobPosting> modifications)
+        {
+            var clone = this.Clone();
+            modifications?.Invoke(clone);
+            return clone;
         }
     }
 }

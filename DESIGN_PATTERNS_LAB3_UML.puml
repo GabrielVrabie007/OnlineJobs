@@ -1,0 +1,214 @@
+@startuml Design Patterns Lab 3 - Builder, Prototype, Singleton
+
+title Design Patterns Lab 3\nBuilder, Prototype, Singleton Patterns
+
+' ==================== BUILDER PATTERN ====================
+package "Builder Pattern" #LightBlue {
+
+    interface IJobSeekerProfileBuilder {
+        + WithBasicInfo(...): IJobSeekerProfileBuilder
+        + WithPersonalDetails(...): IJobSeekerProfileBuilder
+        + WithProfessionalSummary(...): IJobSeekerProfileBuilder
+        + WithOnlinePresence(...): IJobSeekerProfileBuilder
+        + AddEducation(...): IJobSeekerProfileBuilder
+        + AddWorkExperience(...): IJobSeekerProfileBuilder
+        + AddSkill(...): IJobSeekerProfileBuilder
+        + AddCertification(...): IJobSeekerProfileBuilder
+        + Reset(): void
+        + Build(): JobSeeker
+    }
+
+    class JobSeekerProfileBuilder {
+        - _jobSeeker: JobSeeker
+        + WithBasicInfo(...): IJobSeekerProfileBuilder
+        + WithPersonalDetails(...): IJobSeekerProfileBuilder
+        + WithProfessionalSummary(...): IJobSeekerProfileBuilder
+        + AddEducation(...): IJobSeekerProfileBuilder
+        + AddWorkExperience(...): IJobSeekerProfileBuilder
+        + AddSkill(...): IJobSeekerProfileBuilder
+        + Reset(): void
+        + Build(): JobSeeker
+    }
+
+    class JobSeekerProfileDirector {
+        - _builder: IJobSeekerProfileBuilder
+        + ConstructEntryLevelProfile(...): JobSeeker
+        + ConstructExperiencedProfile(...): JobSeeker
+        + ConstructSeniorTechnicalProfile(...): JobSeeker
+        + ConstructCareerChangerProfile(...): JobSeeker
+        + ConstructCompleteProfile(...): JobSeeker
+    }
+
+    class JobSeeker {
+        + Id: Guid
+        + Email: string
+        + FirstName: string
+        + LastName: string
+        + ProfessionalSummary: string
+        + EducationHistory: List<Education>
+        + WorkHistory: List<WorkExperience>
+        + SkillSet: List<Skill>
+        + Certifications: List<Certification>
+    }
+
+    class Education <<ValueObject>> {
+        + Degree: string
+        + Institution: string
+        + FieldOfStudy: string
+        + StartDate: DateTime
+        + EndDate: DateTime?
+        + GPA: double?
+    }
+
+    class WorkExperience <<ValueObject>> {
+        + Company: string
+        + Position: string
+        + Location: string
+        + StartDate: DateTime
+        + EndDate: DateTime?
+        + Description: string
+    }
+
+    class Skill <<ValueObject>> {
+        + Name: string
+        + Proficiency: SkillProficiency
+        + YearsOfExperience: int?
+        + Category: string
+    }
+
+    class Certification <<ValueObject>> {
+        + Name: string
+        + Issuer: string
+        + DateObtained: DateTime
+        + ExpiryDate: DateTime?
+    }
+
+    IJobSeekerProfileBuilder <|.. JobSeekerProfileBuilder : implements
+    JobSeekerProfileDirector --> IJobSeekerProfileBuilder : uses
+    JobSeekerProfileBuilder ..> JobSeeker : builds
+    JobSeeker *-- "0..*" Education
+    JobSeeker *-- "0..*" WorkExperience
+    JobSeeker *-- "0..*" Skill
+    JobSeeker *-- "0..*" Certification
+}
+
+' ==================== PROTOTYPE PATTERN ====================
+package "Prototype Pattern" #LightGreen {
+
+    interface "IPrototype<T>" as IPrototype {
+        + Clone(): T
+        + ShallowCopy(): T
+    }
+
+    class JobPosting {
+        + Id: Guid
+        + Title: string
+        + Description: string
+        + Requirements: string
+        + SalaryMin: decimal?
+        + SalaryMax: decimal?
+        + Location: string
+        + EmploymentType: string
+        + Category: string
+        + Status: JobStatus
+        --
+        + Clone(): JobPosting
+        + ShallowCopy(): JobPosting
+        + CloneWithNewTitle(string): JobPosting
+        + CloneWith(Action<JobPosting>): JobPosting
+    }
+
+    class Company {
+        + Id: Guid
+        + Name: string
+        + Description: string
+        + Website: string
+        + Location: string
+        + Industry: string
+        + EmployeeCount: int?
+        --
+        + Clone(): Company
+        + ShallowCopy(): Company
+        + CloneWithNewName(string): Company
+        + CloneAsSubsidiary(string, string): Company
+        + CloneWith(Action<Company>): Company
+    }
+
+    IPrototype <|.. JobPosting : implements
+    IPrototype <|.. Company : implements
+}
+
+' ==================== SINGLETON PATTERN ====================
+package "Singleton Pattern" #LightYellow {
+
+    class ApplicationConfiguration <<Singleton>> {
+        {static} - _instance: Lazy<ApplicationConfiguration>
+        {static} - _updateLock: object
+        --
+        {static} + Instance: ApplicationConfiguration
+        --
+        - ApplicationConfiguration()
+        --
+        + JobExpiryDays: int
+        + MaxActiveApplicationsPerUser: int
+        + MaxActiveJobPostingsPerEmployer: int
+        + MinPasswordLength: int
+        + MaxResumeSizeMB: int
+        + EmailNotificationsEnabled: bool
+        + ApplicationName: string
+        + ApplicationVersion: string
+        + SessionExpiryDays: int
+        + RegistrationEnabled: bool
+        + MaxSearchResultsPerPage: int
+        + LastUpdated: DateTime
+        --
+        + UpdateJobSettings(...): void
+        + UpdateUserSettings(...): void
+        + SetEmailNotifications(bool): void
+        + SetRegistrationEnabled(bool): void
+        + ResetToDefaults(): void
+        + GetAllSettings(): Dictionary<string, object>
+    }
+
+    note right of ApplicationConfiguration
+        Thread-safe Singleton using Lazy<T>
+        - Only one instance exists
+        - Global access point
+        - Lazy initialization
+        - Thread-safe updates using lock
+    end note
+}
+
+' ==================== RELATIONSHIPS ====================
+note as N1
+    <b>Builder Pattern</b>
+    Separates complex object construction
+    from its representation. Allows step-by-step
+    creation with fluent interface.
+
+    <b>Use case:</b> Building detailed JobSeeker
+    profiles with education, work experience,
+    skills, and certifications.
+end note
+
+note as N2
+    <b>Prototype Pattern</b>
+    Enables object cloning to create new
+    instances based on existing ones.
+    Supports both deep and shallow copying.
+
+    <b>Use case:</b> Cloning job postings and
+    companies to create similar entities quickly.
+end note
+
+note as N3
+    <b>Singleton Pattern</b>
+    Ensures a class has only one instance
+    and provides global access point.
+    Thread-safe implementation.
+
+    <b>Use case:</b> Managing application-wide
+    configuration settings.
+end note
+
+@enduml
