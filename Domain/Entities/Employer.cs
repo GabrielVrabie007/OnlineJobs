@@ -4,56 +4,8 @@ namespace OnlineJobs.Domain.Entities
 {
     public class Employer : User
     {
-        private string _email;
-        private string _firstName;
-        private string _lastName;
-
-        public Guid Id { get; private set; }
-
-        public string Email
-        {
-            get => _email;
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("Email cannot be empty");
-
-                if (!value.Contains("@"))
-                    throw new ArgumentException("Invalid email format");
-
-                _email = value;
-            }
-        }
-
-        public string PasswordHash { get; set; }
-
-        public string FirstName
-        {
-            get => _firstName;
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("First name cannot be empty");
-                _firstName = value;
-            }
-        }
-
-        public string LastName
-        {
-            get => _lastName;
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("Last name cannot be empty");
-                _lastName = value;
-            }
-        }
-
-        public DateTime CreatedAt { get; private set; }
-        public DateTime? LastLoginAt { get; set; }
-        public bool IsActive { get; set; }
-        public string? PhoneNumber { get; set; }
-        public UserType UserType => UserType.Employer;
+        // All base properties (Id, Email, PasswordHash, FirstName, LastName, etc.)
+        // are inherited from User base class
 
         // Employer-specific properties
         public Guid? CompanyId { get; set; }
@@ -62,50 +14,25 @@ namespace OnlineJobs.Domain.Entities
 
         public List<JobPosting> JobPostings { get; set; }
 
-        public Employer(string email, string firstName, string lastName)
+        public Employer(string email, string firstName, string lastName) : base(email, firstName, lastName)
         {
-            Id = Guid.NewGuid();
-            Email = email;
-            FirstName = firstName;
-            LastName = lastName;
-            CreatedAt = DateTime.UtcNow;
-            IsActive = true;
+            UserType = UserType.Employer;
             JobPostings = new List<JobPosting>();
         }
 
-        public Employer()
+        public Employer() : base()
         {
-            Id = Guid.NewGuid();
-            CreatedAt = DateTime.UtcNow;
-            IsActive = true;
+            UserType = UserType.Employer;
             JobPostings = new List<JobPosting>();
         }
 
-        public Employer(Guid id)
+        public Employer(Guid id) : base(id)
         {
-            Id = id;
-            CreatedAt = DateTime.UtcNow;
-            IsActive = true;
+            UserType = UserType.Employer;
             JobPostings = new List<JobPosting>();
         }
 
-        public string GetFullName()
-        
-        {
-            
-            return $"{FirstName} {LastName}";
-        }
-
-        public string GetDisplayInfo()
-        {
-            var companyInfo = Company != null ? $" at {Company.Name}" : "";
-            return $"{GetFullName()} ({Email}) - Employer{companyInfo}";
-        }
-
-        public void UpdateLastLogin()
-        {
-            LastLoginAt = DateTime.UtcNow;
-        }
+        // GetFullName() and UpdateLastLogin() are inherited from base User class
 
         // Employer-specific methods
         public bool CanPostJobs()

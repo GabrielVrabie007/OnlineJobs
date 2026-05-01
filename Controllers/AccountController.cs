@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OnlineJobs.Application.Interfaces;
-using OnlineJobs.Web.Models;
+using OnlineJobs.Models;
 using System.Text.Json;
 
 namespace OnlineJobs.Controllers
@@ -85,17 +85,27 @@ namespace OnlineJobs.Controllers
                 }
                 else if (model.UserType == "Employer")
                 {
+                    if (!model.CompanyId.HasValue || model.CompanyId.Value == Guid.Empty)
+                    {
+                        ModelState.AddModelError("CompanyId", "Please select a company");
+                        var companies = await _companyService.GetAllCompaniesAsync();
+                        ViewBag.Companies = companies;
+                        return View(model);
+                    }
+
                     await _userService.RegisterEmployerAsync(
                         model.Email,
                         model.FirstName,
                         model.LastName,
                         model.Password,
-                        model.CompanyId
+                        model.CompanyId.Value
                     );
                 }
                 else
                 {
                     ModelState.AddModelError(string.Empty, "Invalid user type");
+                    var companies = await _companyService.GetAllCompaniesAsync();
+                    ViewBag.Companies = companies;
                     return View(model);
                 }
 

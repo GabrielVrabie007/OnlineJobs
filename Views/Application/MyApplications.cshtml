@@ -1,0 +1,138 @@
+@model IEnumerable<OnlineJobs.Models.ApplicationDetailsViewModel>
+
+@{
+    ViewData["Title"] = "My Applications";
+    var userName = Context.Session.GetString("UserName");
+}
+
+<div class="container mt-4 mb-5">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="text-gradient mb-2">
+                <i class="bi bi-file-earmark-text"></i> My Applications
+            </h2>
+            <p class="text-muted">Track the status of your job applications</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card" style="background: var(--gradient-primary);">
+                <div class="stat-icon">
+                    <i class="bi bi-file-earmark"></i>
+                </div>
+                <div class="stat-value">@Model.Count()</div>
+                <div class="stat-label">Total Applications</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="stat-icon">
+                    <i class="bi bi-clock"></i>
+                </div>
+                <div class="stat-value">@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview)</div>
+                <div class="stat-label">Pending</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                <div class="stat-icon">
+                    <i class="bi bi-person-video3"></i>
+                </div>
+                <div class="stat-value">@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing)</div>
+                <div class="stat-label">Interviewing</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background: var(--gradient-success);">
+                <div class="stat-icon">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="stat-value">@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Accepted)</div>
+                <div class="stat-label">Accepted</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#all" type="button">
+                All Applications (@Model.Count())
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pending" type="button">
+                Pending (@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview))
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#interviewing" type="button">
+                Interviewing (@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing))
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#completed" type="button">
+                Completed (@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Accepted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Rejected))
+            </button>
+        </li>
+    </ul>
+
+    @if (Model != null && Model.Any())
+    {
+        <!-- Applications List -->
+        <div class="tab-content">
+            <!-- All Tab -->
+            <div class="tab-pane fade show active" id="all">
+                @foreach (var application in Model.OrderByDescending(a => a.AppliedAt))
+                {
+                    @await Html.PartialAsync("_ApplicationCard", application)
+                }
+            </div>
+
+            <!-- Pending Tab -->
+            <div class="tab-pane fade" id="pending">
+                @foreach (var application in Model.Where(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview).OrderByDescending(a => a.AppliedAt))
+                {
+                    @await Html.PartialAsync("_ApplicationCard", application)
+                }
+            </div>
+
+            <!-- Interviewing Tab -->
+            <div class="tab-pane fade" id="interviewing">
+                @foreach (var application in Model.Where(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing).OrderByDescending(a => a.AppliedAt))
+                {
+                    @await Html.PartialAsync("_ApplicationCard", application)
+                }
+            </div>
+
+            <!-- Completed Tab -->
+            <div class="tab-pane fade" id="completed">
+                @foreach (var application in Model.Where(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Accepted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Rejected).OrderByDescending(a => a.AppliedAt))
+                {
+                    @await Html.PartialAsync("_ApplicationCard", application)
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="card text-center p-5 fade-in">
+            <div class="card-body">
+                <div class="icon-gradient mx-auto mb-4" style="width: 80px; height: 80px; font-size: 2.5rem;">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h3 class="text-gradient mb-3">No applications yet</h3>
+                <p class="text-muted mb-4">
+                    Start your job search journey by applying to positions that match your skills.
+                </p>
+                <a asp-controller="Job" asp-action="Index" class="btn btn-primary btn-lg">
+                    <i class="bi bi-search"></i> Browse Jobs
+                </a>
+            </div>
+        </div>
+    }
+</div>

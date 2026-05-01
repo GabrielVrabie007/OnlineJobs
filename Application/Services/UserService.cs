@@ -31,14 +31,7 @@ namespace OnlineJobs.Application.Services
 
             await _jobSeekerRepository.AddAsync(jobSeeker);
 
-            // Create corresponding User entity
-            var user = new User(email, firstName, lastName)
-            {
-                PasswordHash = HashPassword(password)
-            };
-            await _userRepository.AddAsync(user);
-
-            return user;
+            return jobSeeker;
         }
 
         public async Task<User> RegisterEmployerAsync(string email, string firstName, string lastName, string password, Guid? companyId = null)
@@ -54,14 +47,7 @@ namespace OnlineJobs.Application.Services
 
             await _employerRepository.AddAsync(employer);
 
-            // Create corresponding User entity
-            var user = new User(email, firstName, lastName)
-            {
-                PasswordHash = HashPassword(password)
-            };
-            await _userRepository.AddAsync(user);
-
-            return user;
+            return employer;
         }
 
         public async Task<User> LoginAsync(string email, string password)
@@ -133,6 +119,11 @@ namespace OnlineJobs.Application.Services
         public async Task<IEnumerable<Employer>> GetAllEmployersAsync()
         {
             return await _employerRepository.GetAllAsync();
+        }
+
+        public async Task<Employer?> GetEmployerAsync(Guid employerId)
+        {
+            return await _employerRepository.GetByIdAsync(employerId);
         }
 
         private string HashPassword(string password)

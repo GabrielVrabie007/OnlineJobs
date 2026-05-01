@@ -31,6 +31,15 @@ namespace OnlineJobs.Domain.Entities
         public DateTime? ReviewedDate { get; set; }
         public string? ReviewNotes { get; set; }
 
+        // New properties for enhanced application features
+        public decimal? ExpectedSalary { get; set; }
+        public string? PortfolioLink { get; set; }
+        public DateTime? AvailableStartDate { get; set; }
+        public string? AdditionalInfo { get; set; }
+
+        // Alias for AppliedDate to match frontend expectations
+        public DateTime AppliedAt => AppliedDate;
+
         public JobApplication(Guid jobPostingId, Guid jobSeekerId, string coverLetter)
         {
             Id = Guid.NewGuid();

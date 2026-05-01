@@ -1,0 +1,378 @@
+@model OnlineJobs.Domain.Entities.JobPosting
+
+@{
+    ViewData["Title"] = Model.Title;
+    var isLoggedIn = Context.Session.GetString("UserId") != null;
+    var userType = Context.Session.GetString("UserType");
+    var isJobSeeker = userType == "JobSeeker";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Job Header Card -->
+            <div class="card mb-4 slide-up">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h1 class="h2 mb-2">@Model.Title</h1>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-building"></i>
+                                <strong>@ViewBag.CompanyName</strong>
+                                @if (!ViewBag.IsAuthenticated)
+                                {
+                                    <span class="badge bg-warning text-dark ms-2">
+                                        <i class="bi bi-lock"></i> Login to see company
+                                    </span>
+                                }
+                            </p>
+                        </div>
+                        <span class="badge job-status-@Model.Status.ToString().ToLower()">
+                            @Model.Status
+                        </span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-3 mb-3">
+                        @if (!string.IsNullOrEmpty(Model.Location))
+                        {
+                            <span class="text-muted">
+                                <i class="bi bi-geo-alt-fill text-danger"></i> @Model.Location
+                            </span>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.EmploymentType))
+                        {
+                            <span class="badge bg-info text-dark">
+                                <i class="bi bi-briefcase"></i> @Model.EmploymentType
+                            </span>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Category))
+                        {
+                            <span class="badge badge-gradient">
+                                <i class="bi bi-tag"></i> @Model.Category
+                            </span>
+                        }
+                    </div>
+
+                    @if (ViewBag.SalaryRange != null)
+                    {
+                        <div class="alert alert-light border" role="alert">
+                            <h5 class="text-success mb-0">
+                                <i class="bi bi-currency-dollar"></i>
+                                $@(((decimal?)ViewBag.SalaryRange).Value.ToString("N0"))
+                                <span class="text-muted" style="font-size: 0.875rem;">per year</span>
+                            </h5>
+                        </div>
+                    }
+                    else if (!ViewBag.IsAuthenticated)
+                    {
+                        <div class="alert alert-warning" role="alert">
+                            <i class="bi bi-lock"></i>
+                            <strong>Salary information hidden.</strong> Please login to view salary details.
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Job Description -->
+            <div class="card mb-4 fade-in">
+                <div class="card-header">
+                    <i class="bi bi-file-text"></i> Job Description
+                </div>
+                <div class="card-body">
+                    <p style="white-space: pre-line;">@Model.Description</p>
+                </div>
+            </div>
+
+            <!-- Requirements -->
+            @if (!string.IsNullOrEmpty(Model.Requirements))
+            {
+                <div class="card mb-4 fade-in">
+                    <div class="card-header">
+                        <i class="bi bi-check2-square"></i> Requirements
+                    </div>
+                    <div class="card-body">
+                        <p style="white-space: pre-line;">@Model.Requirements</p>
+                    </div>
+                </div>
+            }
+
+            <!-- Company Information Card (Lab 4 - Company Reveal Feature) -->
+            <div class="card mb-4 fade-in">
+                <div class="card-header">
+                    <i class="bi bi-building"></i> Company Information
+                </div>
+                <div class="card-body">
+                    @if (Model.IsCompanyRevealed)
+                    {
+                        <!-- Company Revealed -->
+                        <div class="row align-items-center">
+                            <div class="col-md-3 text-center mb-3 mb-md-0">
+                                <div class="icon-gradient mx-auto" style="width: 80px; height: 80px; font-size: 2rem;">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <h4 class="text-gradient mb-3">@Model.Company?.Name</h4>
+                                <p class="mb-2">@Model.Company?.Description</p>
+                                <div class="mt-3">
+                                    @if (!string.IsNullOrEmpty(Model.Company?.Location))
+                                    {
+                                        <p class="mb-1">
+                                            <i class="bi bi-geo-alt text-danger"></i>
+                                            <strong>Location:</strong> @Model.Company.Location
+                                        </p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(Model.Company?.Industry))
+                                    {
+                                        <p class="mb-1">
+                                            <i class="bi bi-building text-primary"></i>
+                                            <strong>Industry:</strong> @Model.Company.Industry
+                                        </p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(Model.Company?.Website))
+                                    {
+                                        <p class="mb-1">
+                                            <i class="bi bi-globe text-success"></i>
+                                            <strong>Website:</strong>
+                                            <a href="@Model.Company.Website" target="_blank" class="text-gradient">@Model.Company.Website</a>
+                                        </p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Company Hidden - Show Reveal Option (Lab 4 Feature!) -->
+                        <div class="text-center p-4">
+                            <div class="icon-gradient mx-auto mb-3" style="width: 60px; height: 60px;">
+                                <i class="bi bi-eye-slash"></i>
+                            </div>
+                            <h5 class="mb-3">Company Details Hidden</h5>
+                            <p class="text-muted mb-4">
+                                Want to know which company posted this job?<br />
+                                <strong>Reveal the company name and full details for just $4.99</strong>
+                            </p>
+
+                            @if (isJobSeeker)
+                            {
+                                <button type="button" class="btn btn-secondary btn-lg" data-bs-toggle="modal" data-bs-target="#companyRevealModal">
+                                    <i class="bi bi-unlock"></i> Reveal Company ($4.99)
+                                </button>
+                                <p class="text-muted mt-3 small">
+                                    <i class="bi bi-shield-check text-success"></i>
+                                    Secure payment via PayPal, Stripe, or Google Pay
+                                </p>
+                            }
+                            else if (isLoggedIn)
+                            {
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-info-circle"></i>
+                                    This feature is only available for job seekers.
+                                </div>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-lg">
+                                    <i class="bi bi-box-arrow-in-right"></i> Login to Reveal Company
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Apply Card -->
+            @if (isJobSeeker && Model.Status.ToString() == "Active")
+            {
+                <div class="card mb-4 slide-up" style="animation-delay: 0.1s;">
+                    <div class="card-body text-center p-4">
+                        <h5 class="mb-3">Interested in this position?</h5>
+                        <a asp-controller="Application" asp-action="Apply" asp-route-jobId="@Model.Id" class="btn btn-primary btn-lg w-100 mb-2">
+                            <i class="bi bi-file-earmark-arrow-up"></i> Apply Now
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-bookmark"></i> Save for Later
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Job Stats -->
+            <div class="card mb-4 fade-in" style="animation-delay: 0.2s;">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Job Information
+                </div>
+                <div class="card-body">
+                    <div class="mb-3 pb-3 border-bottom">
+                        <small class="text-muted">Posted</small>
+                        <p class="mb-0 fw-bold">@Model.CreatedAt.ToString("MMM dd, yyyy")</p>
+                    </div>
+                    <div class="mb-3 pb-3 border-bottom">
+                        <small class="text-muted">Job ID</small>
+                        <p class="mb-0 fw-bold">@Model.Id</p>
+                    </div>
+                    @if (Model.ExperienceLevel != null)
+                    {
+                        <div class="mb-3 pb-3 border-bottom">
+                            <small class="text-muted">Experience Level</small>
+                            <p class="mb-0 fw-bold">@Model.ExperienceLevel</p>
+                        </div>
+                    }
+                    <div>
+                        <small class="text-muted">Status</small>
+                        <p class="mb-0">
+                            <span class="badge job-status-@Model.Status.ToString().ToLower()">@Model.Status</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Share Card -->
+            <div class="card fade-in" style="animation-delay: 0.3s;">
+                <div class="card-header">
+                    <i class="bi bi-share"></i> Share This Job
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary flex-fill" title="Share on LinkedIn">
+                            <i class="bi bi-linkedin"></i>
+                        </button>
+                        <button class="btn btn-outline-info flex-fill" title="Share on Twitter">
+                            <i class="bi bi-twitter"></i>
+                        </button>
+                        <button class="btn btn-outline-success flex-fill" title="Share via Email">
+                            <i class="bi bi-envelope"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary flex-fill" title="Copy Link">
+                            <i class="bi bi-link-45deg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Company Reveal Payment Modal (Lab 4 - Adapter Pattern Showcase) -->
+<div class="modal fade" id="companyRevealModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius: 20px; border: none;">
+            <div class="modal-header" style="background: var(--gradient-purple); color: white; border: none;">
+                <h5 class="modal-title">
+                    <i class="bi bi-unlock"></i> Reveal Company Information
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-gradient mb-2">$4.99</h3>
+                    <p class="text-muted">One-time payment to reveal company details</p>
+                </div>
+
+                <div class="alert alert-light border">
+                    <h6 class="mb-2"><i class="bi bi-check-circle text-success"></i> What you'll get:</h6>
+                    <ul class="mb-0">
+                        <li>Full company name</li>
+                        <li>Company description and industry</li>
+                        <li>Location and contact information</li>
+                        <li>Company website</li>
+                    </ul>
+                </div>
+
+                <h6 class="mb-3 mt-4">Select Payment Method:</h6>
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-info-circle"></i> Demonstrating <strong>Adapter Pattern</strong> - Multiple payment gateways with unified interface
+                </p>
+
+                <form id="paymentForm" asp-controller="Payment" asp-action="ProcessCompanyReveal" method="post">
+                    <input type="hidden" name="jobId" value="@Model.Id" />
+                    <input type="hidden" name="paymentGateway" id="selectedGateway" />
+
+                    <div class="row g-3">
+                        <!-- PayPal -->
+                        <div class="col-md-4">
+                            <div class="payment-gateway-card" onclick="selectPaymentGateway('PayPal')" id="paypal-card">
+                                <div class="payment-gateway-icon" style="color: #0070ba;">
+                                    <i class="bi bi-paypal"></i>
+                                </div>
+                                <div class="payment-gateway-name">PayPal</div>
+                                <small class="text-muted">Fast & Secure</small>
+                            </div>
+                        </div>
+
+                        <!-- Stripe -->
+                        <div class="col-md-4">
+                            <div class="payment-gateway-card" onclick="selectPaymentGateway('Stripe')" id="stripe-card">
+                                <div class="payment-gateway-icon" style="color: #635bff;">
+                                    <i class="bi bi-credit-card"></i>
+                                </div>
+                                <div class="payment-gateway-name">Stripe</div>
+                                <small class="text-muted">Credit Card</small>
+                            </div>
+                        </div>
+
+                        <!-- Google Pay -->
+                        <div class="col-md-4">
+                            <div class="payment-gateway-card" onclick="selectPaymentGateway('GooglePay')" id="googlepay-card">
+                                <div class="payment-gateway-icon" style="color: #4285f4;">
+                                    <i class="bi bi-google"></i>
+                                </div>
+                                <div class="payment-gateway-name">Google Pay</div>
+                                <small class="text-muted">Quick Payment</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3" id="gatewayWarning" style="display: none;">
+                        <i class="bi bi-exclamation-triangle"></i> Please select a payment method
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-lg" style="background: var(--gradient-purple); color: white;">
+                            <i class="bi bi-lock"></i> Pay $4.99 & Reveal Company
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+
+                <p class="text-center text-muted small mt-3 mb-0">
+                    <i class="bi bi-shield-check"></i> Secured by 256-bit SSL encryption
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function selectPaymentGateway(gateway) {
+            // Update hidden input
+            document.getElementById('selectedGateway').value = gateway;
+
+            // Remove selected class from all cards
+            document.querySelectorAll('.payment-gateway-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // Add selected class to clicked card
+            document.getElementById(gateway.toLowerCase() + '-card').classList.add('selected');
+
+            // Hide warning
+            document.getElementById('gatewayWarning').style.display = 'none';
+        }
+
+        // Form validation
+        document.getElementById('paymentForm').addEventListener('submit', function (e) {
+            const selectedGateway = document.getElementById('selectedGateway').value;
+            if (!selectedGateway) {
+                e.preventDefault();
+                document.getElementById('gatewayWarning').style.display = 'block';
+            }
+        });
+    </script>
+}

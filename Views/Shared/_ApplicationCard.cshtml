@@ -1,0 +1,75 @@
+@model OnlineJobs.Models.ApplicationDetailsViewModel
+
+<div class="card job-card mb-3 fade-in">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <h5 class="mb-2">
+                    <a asp-controller="Job" asp-action="Details" asp-route-id="@Model.JobPostingId" class="text-decoration-none text-dark">
+                        @Model.JobTitle
+                    </a>
+                </h5>
+                <p class="text-muted mb-2">
+                    <i class="bi bi-building"></i> @Model.CompanyName
+                    <span class="ms-3"><i class="bi bi-geo-alt"></i> @Model.JobLocation</span>
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge status-@Model.Status.ToString().ToLower().Replace(" ", "-")">
+                        @Model.Status
+                    </span>
+                    @if (!string.IsNullOrEmpty(Model.JobEmploymentType))
+                    {
+                        <span class="badge bg-info text-dark">
+                            <i class="bi bi-briefcase"></i> @Model.JobEmploymentType
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.JobCategory))
+                    {
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-tag"></i> @Model.JobCategory
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <div class="col-md-3 text-center mt-3 mt-md-0">
+                <small class="text-muted d-block">Applied</small>
+                <p class="mb-0 fw-bold">@Model.AppliedAt.ToString("MMM dd, yyyy")</p>
+                @if (Model.ExpectedSalary.HasValue)
+                {
+                    <small class="text-success d-block mt-2">
+                        <i class="bi bi-currency-dollar"></i> $@Model.ExpectedSalary.Value.ToString("N0")
+                    </small>
+                }
+                else if (Model.JobSalaryMax.HasValue)
+                {
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-currency-dollar"></i> Up to $@Model.JobSalaryMax.Value.ToString("N0")
+                    </small>
+                }
+            </div>
+
+            <div class="col-md-2 text-end mt-3 mt-md-0">
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-primary btn-sm mb-2 w-100">
+                    <i class="bi bi-eye"></i> View
+                </a>
+                @if (Model.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted || Model.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview)
+                {
+                    <form asp-action="Withdraw" asp-route-id="@Model.Id" method="post">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Are you sure you want to withdraw this application?')">
+                            <i class="bi bi-x-circle"></i> Withdraw
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.CoverLetter) && Model.CoverLetter.Length > 0)
+        {
+            <div class="mt-3 pt-3 border-top">
+                <small class="text-muted">Cover Letter Excerpt:</small>
+                <p class="mb-0 small">@(Model.CoverLetter.Length > 150 ? Model.CoverLetter.Substring(0, 150) + "..." : Model.CoverLetter)</p>
+            </div>
+        }
+    </div>
+</div>

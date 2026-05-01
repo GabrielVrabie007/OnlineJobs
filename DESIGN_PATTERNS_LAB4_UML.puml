@@ -1,0 +1,114 @@
+@startuml Design Patterns Lab 4
+
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+title Design Patterns Lab 4\nAdapter, Composite, and Facade Patterns
+
+package "Adapter Pattern" as A #FFE6CC {
+    class PaymentService <<Client>> {
+        + ProcessPaymentAsync(userId, amount, gateway) : Task<PaymentTransaction>
+    }
+    interface IPaymentProcessor <<Target>> {
+        + ProcessPaymentAsync(email, amount, currency) : Task<PaymentResult>
+        + VerifyPaymentAsync(transactionId) : Task<bool>
+    }
+    class PayPalAdapter <<Adapter>> {
+        - _payPalSdk : PayPalGatewaySDK
+    }
+    class StripeAdapter <<Adapter>> {
+        - _stripeSdk : StripeGatewaySDK
+    }
+    class GooglePayAdapter <<Adapter>> {
+        - _googlePaySdk : GooglePayGatewaySDK
+    }
+    class PayPalGatewaySDK <<Adaptee>> {
+        + CreatePayment(email, amount, currency) : PayPalPaymentResponse
+    }
+    class StripeGatewaySDK <<Adaptee>> {
+        + Charge(amountInCents, currency, email) : StripeChargeResult
+    }
+    class GooglePayGatewaySDK <<Adaptee>> {
+        + ProcessTransaction(request) : GooglePayTransactionResult
+    }
+
+    PaymentService o-down- IPaymentProcessor
+    IPaymentProcessor <|.. PayPalAdapter
+    IPaymentProcessor <|.. StripeAdapter
+    IPaymentProcessor <|.. GooglePayAdapter
+    PayPalAdapter o-down- PayPalGatewaySDK
+    StripeAdapter o-down- StripeGatewaySDK
+    GooglePayAdapter o-down- GooglePayGatewaySDK
+}
+
+package "Composite Pattern" as C #E8F5E9 {
+    abstract class JobCategory <<Component>> {
+        # Id : Guid
+        # Name : string
+        {abstract} + GetJobCount() : int
+        {abstract} + GetAllLeafCategories() : List<CategoryLeaf>
+        + IsComposite() : bool
+    }
+    class CategoryLeaf <<Leaf>> {
+        - _jobs : List<JobPosting>
+        + AddJob(job) : void
+        + GetJobCount() : int
+    }
+    class CategoryComposite <<Composite>> {
+        - _children : List<JobCategory>
+        + Add(category) : void
+        + GetJobCount() : int
+    }
+    class JobPosting {
+        + Id : Guid
+        + Title : string
+    }
+
+    JobCategory <|-down- CategoryLeaf
+    JobCategory <|-down- CategoryComposite
+    CategoryComposite o-down- "0..*" JobCategory
+    CategoryLeaf o-down- "0..*" JobPosting
+}
+
+package "Facade Pattern" as F #FFF9C4 {
+    class JobApplicationFacade <<Facade>> {
+        + SubmitJobApplicationAsync(seekerId, jobId, coverLetter) : Task<ApplicationResult>
+        + GetApplicationStatusAsync(applicationId) : Task<string>
+    }
+    class UserService <<Subsystem>> {
+        + ValidateUserAsync(id) : Task<bool>
+    }
+    class JobService <<Subsystem>> {
+        + IsJobAcceptingApplicationsAsync(id) : Task<bool>
+    }
+    class ApplicationService <<Subsystem>> {
+        + SubmitApplicationAsync(jobId, seekerId) : Task<JobApplication>
+    }
+    class NotificationService <<Subsystem>> {
+        + SendApplicationConfirmationAsync(seekerId, jobTitle) : Task
+    }
+    class ApplicationConfiguration <<Singleton>> {
+        {static} + Instance : ApplicationConfiguration
+        + MaxActiveApplicationsPerUser : int
+    }
+    class ApplicationResult <<DTO>> {
+        + Success : bool
+        + Message : string
+        {static} + Successful(app) : ApplicationResult
+        {static} + Failed(msg) : ApplicationResult
+    }
+
+    JobApplicationFacade -down-> UserService : 1. validate
+    JobApplicationFacade -down-> ApplicationConfiguration : 2. check limits
+    JobApplicationFacade -down-> JobService : 3. verify job
+    JobApplicationFacade -down-> ApplicationService : 4. create app
+    JobApplicationFacade -down-> NotificationService : 5. notify
+    JobApplicationFacade ..> ApplicationResult : returns
+}
+
+' Strict directional layout adjustments
+A -[hidden]right-> C
+A -[hidden]down---> F
+C -[hidden]down---> F
+
+@enduml

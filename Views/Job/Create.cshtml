@@ -1,0 +1,214 @@
+@model OnlineJobs.Models.CreateJobViewModel
+
+@{
+    ViewData["Title"] = "Post a Job";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card slide-up">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="bi bi-plus-circle"></i> Post a New Job
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    @if (ViewData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle"></i> @ViewData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <!-- Job Title -->
+                        <div class="mb-4">
+                            <label asp-for="Title" class="form-label">
+                                <i class="bi bi-briefcase"></i> Job Title *
+                            </label>
+                            <input asp-for="Title" class="form-control form-control-lg" placeholder="e.g., Senior Software Engineer" />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <label asp-for="Description" class="form-label">
+                                <i class="bi bi-file-text"></i> Job Description *
+                            </label>
+                            <textarea asp-for="Description" class="form-control" rows="6" placeholder="Describe the role, responsibilities, and what makes this opportunity exciting..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <!-- Requirements -->
+                        <div class="mb-4">
+                            <label asp-for="Requirements" class="form-label">
+                                <i class="bi bi-check2-square"></i> Requirements
+                            </label>
+                            <textarea asp-for="Requirements" class="form-control" rows="5" placeholder="List the qualifications, skills, and experience required for this position..."></textarea>
+                            <span asp-validation-for="Requirements" class="text-danger"></span>
+                        </div>
+
+                        <!-- Category (Lab 4 - Composite Pattern) -->
+                        <div class="mb-4">
+                            <label asp-for="Category" class="form-label">
+                                <i class="bi bi-tag"></i> Job Category *
+                            </label>
+                            <small class="text-muted d-block mb-2">
+                                <i class="bi bi-info-circle"></i> Demonstrating <strong>Composite Pattern</strong> - Hierarchical category structure
+                            </small>
+                            <select asp-for="Category" class="form-select form-select-lg">
+                                <option value="">-- Select a Category --</option>
+                                <optgroup label="Technology">
+                                    <option value="Technology > Software Development > Backend">Backend Development</option>
+                                    <option value="Technology > Software Development > Frontend">Frontend Development</option>
+                                    <option value="Technology > Software Development > Full Stack">Full Stack Development</option>
+                                    <option value="Technology > Software Development > Mobile">Mobile Development</option>
+                                    <option value="Technology > Data Science">Data Science</option>
+                                    <option value="Technology > DevOps">DevOps Engineering</option>
+                                    <option value="Technology > Cybersecurity">Cybersecurity</option>
+                                </optgroup>
+                                <optgroup label="Business">
+                                    <option value="Business > Marketing">Marketing</option>
+                                    <option value="Business > Sales">Sales</option>
+                                    <option value="Business > Finance">Finance</option>
+                                    <option value="Business > Human Resources">Human Resources</option>
+                                    <option value="Business > Operations">Operations</option>
+                                </optgroup>
+                                <optgroup label="Design">
+                                    <option value="Design > UI/UX">UI/UX Design</option>
+                                    <option value="Design > Graphic Design">Graphic Design</option>
+                                    <option value="Design > Product Design">Product Design</option>
+                                </optgroup>
+                                <optgroup label="Healthcare">
+                                    <option value="Healthcare > Nursing">Nursing</option>
+                                    <option value="Healthcare > Medical">Medical</option>
+                                    <option value="Healthcare > Pharmacy">Pharmacy</option>
+                                </optgroup>
+                                <optgroup label="Education">
+                                    <option value="Education > Teaching">Teaching</option>
+                                    <option value="Education > Administration">Administration</option>
+                                    <option value="Education > Research">Research</option>
+                                </optgroup>
+                            </select>
+                            <span asp-validation-for="Category" class="text-danger"></span>
+                        </div>
+
+                        <!-- Location & Employment Type -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="Location" class="form-label">
+                                    <i class="bi bi-geo-alt"></i> Location *
+                                </label>
+                                <input asp-for="Location" class="form-control" placeholder="e.g., New York, NY or Remote" />
+                                <span asp-validation-for="Location" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="EmploymentType" class="form-label">
+                                    <i class="bi bi-clock"></i> Employment Type *
+                                </label>
+                                <select asp-for="EmploymentType" class="form-select">
+                                    <option value="">-- Select Type --</option>
+                                    <option value="Full-time">Full-time</option>
+                                    <option value="Part-time">Part-time</option>
+                                    <option value="Contract">Contract</option>
+                                    <option value="Freelance">Freelance</option>
+                                    <option value="Internship">Internship</option>
+                                </select>
+                                <span asp-validation-for="EmploymentType" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <!-- Salary Range -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="SalaryMin" class="form-label">
+                                    <i class="bi bi-currency-dollar"></i> Minimum Salary
+                                </label>
+                                <input asp-for="SalaryMin" type="number" class="form-control" placeholder="e.g., 80000" />
+                                <span asp-validation-for="SalaryMin" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="SalaryMax" class="form-label">
+                                    <i class="bi bi-currency-dollar"></i> Maximum Salary
+                                </label>
+                                <input asp-for="SalaryMax" type="number" class="form-control" placeholder="e.g., 120000" />
+                                <span asp-validation-for="SalaryMax" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <!-- Experience Level -->
+                        <div class="mb-4">
+                            <label asp-for="ExperienceLevel" class="form-label">
+                                <i class="bi bi-graph-up"></i> Experience Level
+                            </label>
+                            <select asp-for="ExperienceLevel" class="form-select">
+                                <option value="">-- Select Level --</option>
+                                <option value="Entry Level">Entry Level (0-2 years)</option>
+                                <option value="Mid Level">Mid Level (3-5 years)</option>
+                                <option value="Senior Level">Senior Level (6-10 years)</option>
+                                <option value="Lead/Principal">Lead/Principal (10+ years)</option>
+                                <option value="Executive">Executive</option>
+                            </select>
+                            <span asp-validation-for="ExperienceLevel" class="text-danger"></span>
+                        </div>
+
+                        <!-- Company Reveal Option -->
+                        <div class="card border-warning mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="bi bi-eye-slash text-warning"></i> Company Privacy Settings
+                                </h6>
+                                <div class="form-check">
+                                    <input asp-for="IsCompanyRevealed" class="form-check-input" />
+                                    <label asp-for="IsCompanyRevealed" class="form-check-label">
+                                        Show company name publicly
+                                    </label>
+                                </div>
+                                <small class="text-muted">
+                                    If unchecked, job seekers can pay to reveal company details (Lab 4 feature).
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3 justify-content-end">
+                            <a asp-action="MyJobs" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" name="action" value="draft" class="btn btn-outline-primary">
+                                <i class="bi bi-file-earmark"></i> Save as Draft
+                            </button>
+                            <button type="submit" name="action" value="publish" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Publish Job
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="card mt-4 border-primary fade-in">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb text-warning"></i> Tips for creating a great job posting:
+                    </h6>
+                    <ul class="mb-0">
+                        <li>Use a clear and specific job title</li>
+                        <li>Describe your company culture and what makes you unique</li>
+                        <li>Be transparent about salary and benefits</li>
+                        <li>List required vs. preferred qualifications separately</li>
+                        <li>Include information about growth opportunities</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

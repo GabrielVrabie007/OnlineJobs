@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using OnlineJobs.Application.Interfaces;
 using OnlineJobs.Domain.Enums;
-using OnlineJobs.Web.Models;
+using OnlineJobs.Models;
 
 namespace OnlineJobs.Controllers
 {
@@ -44,13 +44,12 @@ namespace OnlineJobs.Controllers
             if (job == null)
                 return NotFound();
 
-            var company = await _companyService.GetCompanyByIdAsync(job.CompanyId);
+            // Pass job details via ViewBag for display
+            ViewBag.Job = job;
 
             var model = new ApplyJobViewModel
             {
-                JobPostingId = jobId,
-                JobTitle = job.Title,
-                CompanyName = company?.Name
+                JobId = jobId
             };
 
             return View(model);
@@ -75,11 +74,25 @@ namespace OnlineJobs.Controllers
                 if (!userId.HasValue)
                     return RedirectToAction("Login", "Account");
 
+                // Create application with enhanced details
                 var application = await _applicationService.SubmitApplicationAsync(
-                    model.JobPostingId,
+                    model.JobId,
                     userId.Value,
                     model.CoverLetter
                 );
+
+                // Update additional properties
+                application.ExpectedSalary = model.ExpectedSalary;
+                application.PortfolioLink = model.PortfolioLink;
+                application.AvailableStartDate = model.AvailableStartDate;
+                application.AdditionalInfo = model.AdditionalInfo;
+
+                // TODO: Handle Resume file upload
+                if (model.Resume != null)
+                {
+                    // Save resume file and set ResumeUrl
+                    // application.ResumeUrl = await SaveResumeFile(model.Resume);
+                }
 
                 TempData["SuccessMessage"] = "Application submitted successfully!";
                 return RedirectToAction("MyApplications");
@@ -105,16 +118,16 @@ namespace OnlineJobs.Controllers
 
             var applications = await _applicationService.GetApplicationsByJobSeekerAsync(userId.Value);
 
-            var enrichedApplications = new List<(Domain.Entities.JobApplication Application, Domain.Entities.JobPosting? Job, Domain.Entities.Company? Company)>();
+            var viewModels = new List<ApplicationDetailsViewModel>();
 
             foreach (var app in applications)
             {
                 var job = await _jobService.GetJobByIdAsync(app.JobPostingId);
                 var company = job != null ? await _companyService.GetCompanyByIdAsync(job.CompanyId) : null;
-                enrichedApplications.Add((app, job, company));
+                viewModels.Add(ApplicationDetailsViewModel.FromEntities(app, job, company));
             }
 
-            return View(enrichedApplications);
+            return View(viewModels);
         }
 
         public async Task<IActionResult> ReceivedApplications()

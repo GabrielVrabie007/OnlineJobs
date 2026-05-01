@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - OnlineJobs</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/custom.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OnlineJobs.styles.css" asp-append-version="true" />
 </head>
 <body>
@@ -20,17 +22,104 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">
+                                <i class="bi bi-house-door"></i> Home
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Job" asp-action="Index">
+                                <i class="bi bi-briefcase"></i> Browse Jobs
+                            </a>
                         </li>
+                        @if (Context.Session.GetString("UserId") != null)
+                        {
+                            var userType = Context.Session.GetString("UserType");
+                            @if (userType == "JobSeeker")
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-area="" asp-controller="Application" asp-action="MyApplications">
+                                        <i class="bi bi-file-earmark-text"></i> My Applications
+                                    </a>
+                                </li>
+                            }
+                            else if (userType == "Employer")
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-area="" asp-controller="Job" asp-action="MyJobs">
+                                        <i class="bi bi-briefcase-fill"></i> My Jobs
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-area="" asp-controller="Job" asp-action="Create">
+                                        <i class="bi bi-plus-circle"></i> Post Job
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-area="" asp-controller="Reports" asp-action="Index">
+                                        <i class="bi bi-file-earmark-bar-graph"></i> Reports
+                                    </a>
+                                </li>
+                            }
+                        }
+                    </ul>
+                    <ul class="navbar-nav ms-auto">
+                        @if (Context.Session.GetString("UserId") != null)
+                        {
+                            var userName = Context.Session.GetString("UserName");
+                            var userType = Context.Session.GetString("UserType");
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-circle"></i> @userName
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                    <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+                                    <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="bi bi-box-arrow-right"></i> Logout
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="Login">
+                                    <i class="bi bi-box-arrow-in-right"></i> Login
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn btn-primary btn-sm ms-2" asp-area="" asp-controller="Account" asp-action="Register">
+                                    <i class="bi bi-person-plus"></i> Sign Up
+                                </a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
         </nav>
     </header>
     <div class="container">
+        <!-- Alert Messages -->
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-exclamation-circle"></i> @TempData["ErrorMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
         <main role="main" class="pb-3">
             @RenderBody()
         </main>

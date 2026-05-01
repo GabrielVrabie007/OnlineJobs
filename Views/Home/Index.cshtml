@@ -5,50 +5,134 @@
 }
 
 <div class="container mt-4">
-    <div class="text-center mb-5">
-        <h1 class="display-4">Find Your Next Opportunity</h1>
-        <p class="lead">Browse available job postings from top companies</p>
+    <!-- Hero Section -->
+    <div class="text-center mb-5 slide-up">
+        <h1 class="display-3 fw-bold mb-3">
+            Find Your <span class="text-gradient">Dream Job</span>
+        </h1>
+        <p class="lead text-muted mb-4">
+            Discover opportunities from top companies worldwide
+        </p>
+        <div class="d-flex gap-3 justify-content-center mb-4">
+            <a asp-controller="Job" asp-action="Index" class="btn btn-primary btn-lg">
+                <i class="bi bi-search"></i> Browse All Jobs
+            </a>
+            @if (Context.Session.GetString("UserId") == null)
+            {
+                <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-person-plus"></i> Sign Up Free
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-5 fade-in">
+        <div class="col-md-4 mb-3">
+            <div class="text-center">
+                <div class="icon-gradient mx-auto mb-3">
+                    <i class="bi bi-briefcase-fill"></i>
+                </div>
+                <h3 class="text-gradient mb-2">@Model.Count()</h3>
+                <p class="text-muted mb-0">Active Jobs</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="text-center">
+                <div class="icon-gradient mx-auto mb-3" style="background: var(--gradient-purple);">
+                    <i class="bi bi-building"></i>
+                </div>
+                <h3 class="text-gradient mb-2">50+</h3>
+                <p class="text-muted mb-0">Companies Hiring</p>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="text-center">
+                <div class="icon-gradient mx-auto mb-3" style="background: var(--gradient-success);">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <h3 class="text-gradient mb-2">1000+</h3>
+                <p class="text-muted mb-0">Job Seekers</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Featured Jobs Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-gradient mb-0">
+            <i class="bi bi-star-fill"></i> Featured Jobs
+        </h2>
+        <a asp-controller="Job" asp-action="Index" class="btn btn-outline-primary">
+            View All <i class="bi bi-arrow-right"></i>
+        </a>
     </div>
 
     @if (Model != null && Model.Any())
     {
         <div class="row">
-            @foreach (var job in Model)
+            @foreach (var job in Model.Take(6))
             {
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body">
-                            <h5 class="card-title">@job.Title</h5>
-                            <h6 class="card-subtitle mb-2 text-muted">@job.Company?.Name</h6>
+                    <div class="card job-card h-100 fade-in">
+                        <div class="card-body d-flex flex-column">
+                            <!-- Company Icon -->
+                            <div class="mb-3">
+                                <div class="icon-gradient" style="width: 50px; height: 50px; font-size: 1.25rem;">
+                                    <i class="bi bi-building"></i>
+                                </div>
+                            </div>
 
-                            @if (!string.IsNullOrEmpty(job.Company?.Location))
-                            {
-                                <p class="text-muted mb-2">
-                                    <i class="bi bi-geo-alt"></i> @job.Company.Location
-                                </p>
-                            }
+                            <h5 class="card-title mb-2">@job.Title</h5>
+                            <h6 class="card-subtitle mb-3 text-muted">
+                                @if (job.IsCompanyRevealed && job.Company != null)
+                                {
+                                    @job.Company.Name
+                                }
+                                else
+                                {
+                                    <span><i class="bi bi-eye-slash"></i> Company Hidden</span>
+                                }
+                            </h6>
 
-                            <p class="card-text">@(job.Description?.Length > 100 ? job.Description.Substring(0, 100) + "..." : job.Description)</p>
+                            <p class="card-text flex-grow-1 mb-3">
+                                @(job.Description?.Length > 100 ? job.Description.Substring(0, 100) + "..." : job.Description)
+                            </p>
 
-                            @if (job.SalaryMin.HasValue && job.SalaryMax.HasValue)
-                            {
-                                <p class="text-success mb-2">
-                                    <strong>$@job.SalaryMin.Value.ToString("N0") - $@job.SalaryMax.Value.ToString("N0")</strong>
-                                </p>
-                            }
+                            <div class="mb-3">
+                                @if (!string.IsNullOrEmpty(job.Location))
+                                {
+                                    <small class="text-muted d-block mb-1">
+                                        <i class="bi bi-geo-alt"></i> @job.Location
+                                    </small>
+                                }
+                                @if (job.SalaryMin.HasValue && job.SalaryMax.HasValue)
+                                {
+                                    <small class="text-success fw-bold d-block">
+                                        <i class="bi bi-currency-dollar"></i>
+                                        $@job.SalaryMin.Value.ToString("N0") - $@job.SalaryMax.Value.ToString("N0")
+                                    </small>
+                                }
+                            </div>
 
-                            @if (!string.IsNullOrEmpty(job.EmploymentType))
-                            {
-                                <span class="badge bg-info text-dark me-2">@job.EmploymentType</span>
-                            }
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                @if (!string.IsNullOrEmpty(job.EmploymentType))
+                                {
+                                    <span class="badge bg-info text-dark">@job.EmploymentType</span>
+                                }
+                                @if (!string.IsNullOrEmpty(job.Category))
+                                {
+                                    <span class="badge badge-gradient">@job.Category.Split('>').LastOrDefault()?.Trim()</span>
+                                }
+                            </div>
 
-                            @if (!string.IsNullOrEmpty(job.Category))
-                            {
-                                <span class="badge bg-secondary">@job.Category</span>
-                            }
+                            <a asp-controller="Job" asp-action="Details" asp-route-id="@job.Id" class="btn btn-primary w-100 mt-auto">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
                         </div>
-                        <div class="card-footer bg-white">
-                            <a asp-controller="Job" asp-action="Details" asp-route-id="@job.Id" class="btn btn-primary btn-sm w-100">View Details</a>
+                        <div class="card-footer bg-light">
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> Posted @job.PostedDate.ToString("MMM dd, yyyy")
+                            </small>
                         </div>
                     </div>
                 </div>

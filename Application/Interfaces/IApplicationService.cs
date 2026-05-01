@@ -9,6 +9,7 @@ namespace OnlineJobs.Application.Interfaces
         Task<JobApplication> GetApplicationByIdAsync(Guid applicationId);
         Task<IEnumerable<JobApplication>> GetApplicationsByJobSeekerAsync(Guid jobSeekerId);
         Task<IEnumerable<JobApplication>> GetApplicationsByEmployerAsync(Guid employerId);
+        Task<IEnumerable<JobApplication>> GetApplicationsByJobPostingAsync(Guid jobPostingId); // LAB 5 - for Virtual Proxy
         Task StartReviewAsync(Guid applicationId);
         Task MoveToInterviewAsync(Guid applicationId);
         Task AcceptApplicationAsync(Guid applicationId);

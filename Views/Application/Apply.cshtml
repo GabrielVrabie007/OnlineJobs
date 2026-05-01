@@ -1,0 +1,147 @@
+@model OnlineJobs.Models.ApplyJobViewModel
+
+@{
+    ViewData["Title"] = "Apply for Job";
+    var job = ViewBag.Job as OnlineJobs.Domain.Entities.JobPosting;
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Job Summary Card -->
+            <div class="card mb-4 slide-up">
+                <div class="card-body">
+                    <h5 class="mb-2">Applying for:</h5>
+                    <h3 class="text-gradient mb-2">@job?.Title</h3>
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-building"></i> @job?.Company?.Name
+                        <span class="ms-3"><i class="bi bi-geo-alt"></i> @job?.Location</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Application Form -->
+            <div class="card fade-in">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-file-earmark-arrow-up"></i> Submit Your Application
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    @if (ViewData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle"></i> @ViewData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Apply" method="post" enctype="multipart/form-data">
+                        <input type="hidden" asp-for="JobId" />
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <!-- Cover Letter -->
+                        <div class="mb-4">
+                            <label asp-for="CoverLetter" class="form-label">
+                                <i class="bi bi-file-text"></i> Cover Letter *
+                            </label>
+                            <textarea asp-for="CoverLetter" class="form-control" rows="8" placeholder="Tell us why you're a great fit for this position. Highlight your relevant experience and what excites you about this opportunity..."></textarea>
+                            <span asp-validation-for="CoverLetter" class="text-danger"></span>
+                            <small class="text-muted">Minimum 100 characters</small>
+                        </div>
+
+                        <!-- Resume Upload -->
+                        <div class="mb-4">
+                            <label asp-for="Resume" class="form-label">
+                                <i class="bi bi-file-earmark-pdf"></i> Resume/CV *
+                            </label>
+                            <input asp-for="Resume" type="file" class="form-control" accept=".pdf,.doc,.docx" />
+                            <span asp-validation-for="Resume" class="text-danger"></span>
+                            <small class="text-muted">Accepted formats: PDF, DOC, DOCX (Max 5MB)</small>
+                        </div>
+
+                        <!-- Portfolio Link -->
+                        <div class="mb-4">
+                            <label asp-for="PortfolioLink" class="form-label">
+                                <i class="bi bi-link-45deg"></i> Portfolio/LinkedIn URL
+                            </label>
+                            <input asp-for="PortfolioLink" class="form-control" placeholder="https://linkedin.com/in/yourprofile" />
+                            <span asp-validation-for="PortfolioLink" class="text-danger"></span>
+                        </div>
+
+                        <!-- Expected Salary -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="ExpectedSalary" class="form-label">
+                                    <i class="bi bi-currency-dollar"></i> Expected Salary (Annual)
+                                </label>
+                                <input asp-for="ExpectedSalary" type="number" class="form-control" placeholder="e.g., 95000" />
+                                <span asp-validation-for="ExpectedSalary" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="AvailableStartDate" class="form-label">
+                                    <i class="bi bi-calendar"></i> Available Start Date
+                                </label>
+                                <input asp-for="AvailableStartDate" type="date" class="form-control" />
+                                <span asp-validation-for="AvailableStartDate" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="mb-4">
+                            <label asp-for="AdditionalInfo" class="form-label">
+                                <i class="bi bi-chat-left-text"></i> Additional Information
+                            </label>
+                            <textarea asp-for="AdditionalInfo" class="form-control" rows="3" placeholder="Any other information you'd like to share (optional)"></textarea>
+                            <span asp-validation-for="AdditionalInfo" class="text-danger"></span>
+                        </div>
+
+                        <!-- Consent -->
+                        <div class="card border-primary mb-4">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="agreeTerms" required />
+                                    <label class="form-check-label" for="agreeTerms">
+                                        I confirm that the information provided is accurate and I agree to the
+                                        <a href="#" class="text-gradient">Terms of Service</a> and
+                                        <a href="#" class="text-gradient">Privacy Policy</a>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3 justify-content-end">
+                            <a asp-controller="Job" asp-action="Details" asp-route-id="@Model.JobId" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-send"></i> Submit Application
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4 border-info fade-in">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-lightbulb text-warning"></i> Application Tips:
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li>Tailor your cover letter to the specific role and company</li>
+                        <li>Proofread carefully for spelling and grammar</li>
+                        <li>Ensure your resume is up-to-date and relevant</li>
+                        <li>Be honest about your experience and qualifications</li>
+                        <li>Research the company before applying</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

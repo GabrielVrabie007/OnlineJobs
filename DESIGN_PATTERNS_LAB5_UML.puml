@@ -1,0 +1,348 @@
+@startuml LAB5_1_Flyweight
+title LAB 5 — Flyweight Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "FLYWEIGHT PATTERN" <<Rectangle>> #LightBlue {
+
+    class SkillFlyweight <<Flyweight>> {
+        - Name: string {readonly}
+        - Category: string {readonly}
+        + SkillFlyweight(name, category)
+        + Equals(obj): bool
+        + GetHashCode(): int
+    }
+    note right of SkillFlyweight
+        **Intrinsic State**
+        (Partajat între contexte)
+        Imutabil - readonly properties
+    end note
+
+    class SkillFlyweightFactory <<Factory>> {
+        - _skillPool: Dictionary<string, SkillFlyweight>
+        - _lock: object
+        + GetSkill(name, category): SkillFlyweight
+        + GetPoolSize(): int
+        + GetPoolStatistics(): string
+        + Clear(): void
+    }
+    note right of SkillFlyweightFactory
+        **Singleton Pattern Integration**
+        Gestionează pool-ul de flyweights
+        Thread-safe cu lock
+    end note
+
+    class JobSkillRequirement <<Context>> {
+        + Skill: SkillFlyweight
+        + RequiredProficiency: SkillProficiency
+        + MinYearsOfExperience: int?
+        + IsRequired: bool
+        + JobSkillRequirement(...)
+    }
+    note right of JobSkillRequirement
+        **Extrinsic State**
+        (Specific fiecărui context)
+        Combină flyweight cu date contextuale
+    end note
+
+    class JobPosting {
+        + SkillRequirements: List<JobSkillRequirement>
+    }
+
+    enum SkillProficiency {
+        Beginner
+        Intermediate
+        Advanced
+        Expert
+    }
+
+    SkillFlyweightFactory ..> SkillFlyweight : creates/manages
+    JobSkillRequirement --> SkillFlyweight : references (shared)
+    JobSkillRequirement --> SkillProficiency
+    JobPosting o-- JobSkillRequirement
+}
+@enduml
+
+
+
+-----------------------------------------
+
+
+@startuml LAB5_2_Decorator
+title LAB 5 — Decorator Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "DECORATOR PATTERN" <<Rectangle>> #LightGreen {
+
+    interface INotification <<Component>> {
+        + SendAsync(recipient, subject, message): Task
+        + GetDescription(): string
+    }
+
+    class BaseNotification <<ConcreteComponent>> {
+        + SendAsync(...): Task
+        + GetDescription(): string
+    }
+
+    abstract class NotificationDecorator <<Decorator>> {
+        # _wrappedNotification: INotification
+        # NotificationDecorator(notification)
+        + SendAsync(...): Task
+        + GetDescription(): string
+    }
+
+    class EmailNotificationDecorator <<ConcreteDecorator>> {
+        + SendAsync(...): Task
+        - SendEmail(...): Task
+        + GetDescription(): string
+    }
+
+    class SMSNotificationDecorator <<ConcreteDecorator>> {
+        + SendAsync(...): Task
+        - SendSMS(...): Task
+        + GetDescription(): string
+    }
+
+    class PushNotificationDecorator <<ConcreteDecorator>> {
+        + SendAsync(...): Task
+        - SendPushNotification(...): Task
+        + GetDescription(): string
+    }
+
+    class LoggingNotificationDecorator <<ConcreteDecorator>> {
+        - _notificationLog: List<string>
+        + SendAsync(...): Task
+        - LogNotification(...): void
+        + GetDescription(): string
+        + {static} GetNotificationLog(): List<string>
+    }
+
+    class NotificationService {
+        - CreateFullNotification(): INotification
+        - CreateEmailNotification(): INotification
+        + SendApplicationConfirmationAsync(...)
+        + NotifyEmployerNewApplicationAsync(...)
+    }
+    note right of NotificationService
+        **Usage**:
+        n = new BaseNotification();
+        n = new EmailNotificationDecorator(n);
+        n = new SMSNotificationDecorator(n);
+        n = new PushNotificationDecorator(n);
+        n = new LoggingNotificationDecorator(n);
+    end note
+
+    INotification <|.. BaseNotification
+    INotification <|.. NotificationDecorator
+    NotificationDecorator <|-- EmailNotificationDecorator
+    NotificationDecorator <|-- SMSNotificationDecorator
+    NotificationDecorator <|-- PushNotificationDecorator
+    NotificationDecorator <|-- LoggingNotificationDecorator
+    NotificationDecorator o-- INotification : wraps
+    NotificationService ..> INotification : uses
+}
+@enduml
+
+
+-----------------------------------------------------
+
+@startuml LAB5_3_Bridge
+title LAB 5 — Bridge Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "BRIDGE PATTERN" <<Rectangle>> #LightCoral {
+
+    ' --- Abstraction side ---
+    interface IReport <<Abstraction>> {
+        + Title: string
+        + Exporter: IReportExporter
+        + GenerateDataAsync(): Task<Dictionary>
+        + ExportAsync(): Task<string>
+    }
+
+    abstract class BaseReport <<RefinedAbstraction>> {
+        # _exporter: IReportExporter
+        + {abstract} Title: string
+        + Exporter: IReportExporter
+        # BaseReport(exporter)
+        + {abstract} GenerateDataAsync(): Task<Dictionary>
+        + ExportAsync(): Task<string>
+    }
+
+    class JobReport <<RefinedAbstraction>> {
+        - _jobService: IJobService
+        + Title: string
+        + GenerateDataAsync(): Task<Dictionary>
+    }
+
+    class ApplicationReport <<RefinedAbstraction>> {
+        - _applicationService: IApplicationService
+        + Title: string
+        + GenerateDataAsync(): Task<Dictionary>
+    }
+
+    class CompanyReport <<RefinedAbstraction>> {
+        - _companyService: ICompanyService
+        + Title: string
+        + GenerateDataAsync(): Task<Dictionary>
+    }
+
+    ' --- Implementation side ---
+    interface IReportExporter <<Implementor>> {
+        + Format: string
+        + FileExtension: string
+        + ExportAsync(title, data): Task<string>
+        + GenerateHeader(title): string
+        + GenerateFooter(): string
+    }
+
+    class PDFExporter <<ConcreteImplementor>> {
+        + Format: string = "PDF"
+        + FileExtension: string = ".pdf"
+        + ExportAsync(...): Task<string>
+        + GenerateHeader(...): string
+        + GenerateFooter(): string
+    }
+
+    class ExcelExporter <<ConcreteImplementor>> {
+        + Format: string = "Excel"
+        + FileExtension: string = ".xlsx"
+        + ExportAsync(...): Task<string>
+        + GenerateHeader(...): string
+        + GenerateFooter(): string
+    }
+
+    class JSONExporter <<ConcreteImplementor>> {
+        + Format: string = "JSON"
+        + FileExtension: string = ".json"
+        + ExportAsync(...): Task<string>
+        + GenerateHeader(...): string
+        + GenerateFooter(): string
+    }
+
+    class CSVExporter <<ConcreteImplementor>> {
+        + Format: string = "CSV"
+        + FileExtension: string = ".csv"
+        + ExportAsync(...): Task<string>
+        + GenerateHeader(...): string
+        + GenerateFooter(): string
+    }
+
+    class ReportingService {
+        + GenerateJobReportAsync(format): Task<string>
+        + GenerateApplicationReportAsync(format): Task<string>
+        + GenerateCompanyReportAsync(format): Task<string>
+        - GetExporter(format): IReportExporter
+    }
+
+    IReport <|.. BaseReport
+    BaseReport <|-- JobReport
+    BaseReport <|-- ApplicationReport
+    BaseReport <|-- CompanyReport
+    BaseReport o-- IReportExporter : bridge
+
+    IReportExporter <|.. PDFExporter
+    IReportExporter <|.. ExcelExporter
+    IReportExporter <|.. JSONExporter
+    IReportExporter <|.. CSVExporter
+
+    ReportingService ..> IReport : creates
+    ReportingService ..> IReportExporter : creates
+}
+@enduml
+
+
+
+
+
+----------------------------------------------------------------------
+
+@startuml LAB5_4_Proxy
+title LAB 5 — Proxy Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "4A. PROTECTION PROXY" <<Rectangle>> #LightYellow {
+
+    interface IJobPostingAccess <<Subject>> {
+        + GetJobDetailsAsync(jobId): Task<JobPosting>
+        + GetAllJobsAsync(): Task<IEnumerable>
+        + GetCompanyName(job): string
+        + GetSalaryRange(job): decimal?
+    }
+
+    class RealJobPostingAccess <<RealSubject>> {
+        - _jobService: IJobService
+        + GetJobDetailsAsync(jobId): Task<JobPosting>
+        + GetAllJobsAsync(): Task<IEnumerable>
+        + GetCompanyName(job): string
+        + GetSalaryRange(job): decimal?
+    }
+
+    class JobPostingProtectionProxy <<Proxy>> {
+        - _realAccess: RealJobPostingAccess
+        - _isAuthenticated: bool
+        - _currentUserId: Guid?
+        + GetJobDetailsAsync(jobId): Task<JobPosting>
+        + GetAllJobsAsync(): Task<IEnumerable>
+        + GetCompanyName(job): string
+        + GetSalaryRange(job): decimal?
+        - GetPreviewJobAsync(jobId): Task<JobPosting>
+    }
+    note right of JobPostingProtectionProxy
+        Unauthenticated: Company/Salary hidden,
+        Description truncated.
+        Authenticated: Full access.
+    end note
+
+    IJobPostingAccess <|.. RealJobPostingAccess
+    IJobPostingAccess <|.. JobPostingProtectionProxy
+    JobPostingProtectionProxy o-- RealJobPostingAccess : delegates to
+}
+
+package "4B. VIRTUAL PROXY" <<Rectangle>> #LightSalmon {
+
+    interface IApplicationListAccess <<Subject>> {
+        + GetApplicationsAsync(): Task<IEnumerable>
+        + GetApplicationCountAsync(): Task<int>
+        + GetApplicationByIdAsync(id): Task<JobApplication>
+    }
+
+    class RealApplicationListAccess <<RealSubject>> {
+        - _applicationService: IApplicationService
+        - _jobPostingId: Guid
+        + GetApplicationsAsync(): Task<IEnumerable>
+        + GetApplicationCountAsync(): Task<int>
+        + GetApplicationByIdAsync(id): Task<JobApplication>
+    }
+
+    class ApplicationListVirtualProxy <<Proxy>> {
+        - _realAccess: RealApplicationListAccess
+        - _cachedApplications: IEnumerable?
+        - _isLoaded: bool
+        - _lock: object
+        + GetApplicationsAsync(): Task<IEnumerable>
+        + GetApplicationCountAsync(): Task<int>
+        + GetApplicationByIdAsync(id): Task<JobApplication>
+        + IsLoaded(): bool
+        + Invalidate(): void
+    }
+    note right of ApplicationListVirtualProxy
+        Lazy Loading: first access → DB,
+        subsequent → cache.
+        Thread-safe (double-check locking).
+    end note
+
+    IApplicationListAccess <|.. RealApplicationListAccess
+    IApplicationListAccess <|.. ApplicationListVirtualProxy
+    ApplicationListVirtualProxy o-- RealApplicationListAccess : delegates to
+}
+
+
+@enduml

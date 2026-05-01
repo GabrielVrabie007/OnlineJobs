@@ -1,0 +1,165 @@
+@model IEnumerable<OnlineJobs.Domain.Entities.JobPosting>
+
+@{
+    ViewData["Title"] = "My Jobs";
+    var employerName = Context.Session.GetString("UserName");
+}
+
+<div class="container mt-4 mb-5">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="text-gradient mb-2">
+                <i class="bi bi-briefcase-fill"></i> My Job Postings
+            </h2>
+            <p class="text-muted">Manage your active job listings and view applications</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Post New Job
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card" style="background: var(--gradient-primary);">
+                <div class="stat-icon">
+                    <i class="bi bi-briefcase"></i>
+                </div>
+                <div class="stat-value">@Model.Count()</div>
+                <div class="stat-label">Total Jobs</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background: var(--gradient-success);">
+                <div class="stat-icon">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="stat-value">@Model.Count(j => j.Status.ToString() == "Active")</div>
+                <div class="stat-label">Active</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="stat-icon">
+                    <i class="bi bi-file-earmark"></i>
+                </div>
+                <div class="stat-value">@Model.Count(j => j.Status.ToString() == "Draft")</div>
+                <div class="stat-label">Drafts</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                <div class="stat-icon">
+                    <i class="bi bi-x-circle"></i>
+                </div>
+                <div class="stat-value">@Model.Count(j => j.Status.ToString() == "Closed")</div>
+                <div class="stat-label">Closed</div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <!-- Jobs List -->
+        <div class="row">
+            @foreach (var job in Model.OrderByDescending(j => j.CreatedAt))
+            {
+                <div class="col-12 mb-3">
+                    <div class="card job-card fade-in">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h5 class="mb-2">
+                                        <a asp-action="Details" asp-route-id="@job.Id" class="text-decoration-none text-dark">
+                                            @job.Title
+                                        </a>
+                                    </h5>
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <span class="badge job-status-@job.Status.ToString().ToLower()">
+                                            @job.Status
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(job.Category))
+                                        {
+                                            <span class="badge badge-gradient">
+                                                <i class="bi bi-tag"></i> @job.Category
+                                            </span>
+                                        }
+                                        @if (!string.IsNullOrEmpty(job.EmploymentType))
+                                        {
+                                            <span class="badge bg-info text-dark">
+                                                <i class="bi bi-briefcase"></i> @job.EmploymentType
+                                            </span>
+                                        }
+                                    </div>
+                                    <p class="text-muted mb-0">
+                                        <i class="bi bi-geo-alt"></i> @job.Location
+                                        @if (job.SalaryMin.HasValue && job.SalaryMax.HasValue)
+                                        {
+                                            <span class="ms-3">
+                                                <i class="bi bi-currency-dollar text-success"></i>
+                                                $@job.SalaryMin.Value.ToString("N0") - $@job.SalaryMax.Value.ToString("N0")
+                                            </span>
+                                        }
+                                    </p>
+                                </div>
+
+                                <div class="col-md-3 text-center">
+                                    <div class="mb-2">
+                                        <small class="text-muted">Posted</small>
+                                        <p class="mb-0 fw-bold">@job.CreatedAt.ToString("MMM dd, yyyy")</p>
+                                    </div>
+                                    @if (!job.IsCompanyRevealed)
+                                    {
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-eye-slash"></i> Company Hidden
+                                        </span>
+                                    }
+                                </div>
+
+                                <div class="col-md-3 text-end">
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Details" asp-route-id="@job.Id" class="btn btn-outline-primary btn-sm" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@job.Id" class="btn btn-outline-secondary btn-sm" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        @if (job.Status.ToString() == "Active")
+                                        {
+                                            <form asp-action="Close" asp-route-id="@job.Id" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Close Job" onclick="return confirm('Are you sure you want to close this job posting?')">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="card text-center p-5 fade-in">
+            <div class="card-body">
+                <div class="icon-gradient mx-auto mb-4" style="width: 80px; height: 80px; font-size: 2.5rem;">
+                    <i class="bi bi-briefcase"></i>
+                </div>
+                <h3 class="text-gradient mb-3">No jobs posted yet</h3>
+                <p class="text-muted mb-4">
+                    Start attracting top talent by posting your first job opening.
+                </p>
+                <a asp-action="Create" class="btn btn-primary btn-lg">
+                    <i class="bi bi-plus-circle"></i> Post Your First Job
+                </a>
+            </div>
+        </div>
+    }
+</div>

@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using OnlineJobs.Domain.Enums;
 using OnlineJobs.Domain.Interfaces;
+using OnlineJobs.Domain.ValueObjects;
 
 namespace OnlineJobs.Domain.Entities
 {
@@ -43,9 +45,13 @@ namespace OnlineJobs.Domain.Entities
 
         public Guid EmployerId { get; set; }
         public Guid CompanyId { get; set; }
+        public Guid? CategoryId { get; set; }
 
         public Employer Employer { get; set; }
         public Company Company { get; set; }
+
+        [ForeignKey("CategoryId")]
+        public JobCategory? JobCategory { get; set; }
         public List<JobApplication> Applications { get; set; }
 
         public JobStatus Status { get; set; }
@@ -53,11 +59,26 @@ namespace OnlineJobs.Domain.Entities
         public DateTime? ClosedDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
 
+        // New properties for frontend features
+        public string? ExperienceLevel { get; set; }
+        public bool IsCompanyRevealed { get; set; } = true; // Default to revealed, can be set to false for Lab 4 feature
+
+        // LAB 5 - Flyweight Pattern: Skill requirements using shared SkillFlyweight instances
+        [NotMapped]
+        public List<JobSkillRequirement> SkillRequirements { get; set; } = new List<JobSkillRequirement>();
+
+        // Alias for PostedDate to match frontend expectations
+        public DateTime CreatedAt => PostedDate;
+
         public JobPosting(string title, string description, Guid employerId, Guid companyId)
         {
             Id = Guid.NewGuid();
             Title = title;
             Description = description;
+            Requirements = "";
+            Location = "";
+            EmploymentType = "";
+            Category = "";
             EmployerId = employerId;
             CompanyId = companyId;
             PostedDate = DateTime.UtcNow;
@@ -68,6 +89,10 @@ namespace OnlineJobs.Domain.Entities
         public JobPosting()
         {
             Id = Guid.NewGuid();
+            Requirements = "";
+            Location = "";
+            EmploymentType = "";
+            Category = "";
             PostedDate = DateTime.UtcNow;
             Status = JobStatus.Draft;
             Applications = new List<JobApplication>();
@@ -147,10 +172,13 @@ namespace OnlineJobs.Domain.Entities
                 Location = this.Location,
                 EmploymentType = this.EmploymentType,
                 Category = this.Category,
+                ExperienceLevel = this.ExperienceLevel,
+                IsCompanyRevealed = this.IsCompanyRevealed,
 
                 // Copy employer/company references
                 EmployerId = this.EmployerId,
                 CompanyId = this.CompanyId,
+                CategoryId = this.CategoryId,
 
                 // Reset state for new posting
                 Status = JobStatus.Draft,
@@ -163,7 +191,8 @@ namespace OnlineJobs.Domain.Entities
 
                 // Navigation properties set to null - should be loaded from repository
                 Employer = null,
-                Company = null
+                Company = null,
+                JobCategory = null
             };
 
             return clonedJob;

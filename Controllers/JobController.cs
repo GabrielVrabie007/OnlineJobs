@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using OnlineJobs.Application.Interfaces;
+using OnlineJobs.Application.Proxies;
 using OnlineJobs.Domain.Enums;
-using OnlineJobs.Web.Models;
+using OnlineJobs.Models;
 
 namespace OnlineJobs.Controllers
 {
@@ -10,15 +11,18 @@ namespace OnlineJobs.Controllers
         private readonly IJobService _jobService;
         private readonly ICompanyService _companyService;
         private readonly IApplicationService _applicationService;
+        private readonly IUserService _userService;
 
         public JobController(
             IJobService jobService,
             ICompanyService companyService,
-            IApplicationService applicationService)
+            IApplicationService applicationService,
+            IUserService userService)
         {
             _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
             _companyService = companyService ?? throw new ArgumentNullException(nameof(companyService));
             _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
+            _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         }
 
         public async Task<IActionResult> Index(string searchTerm = null)
@@ -40,24 +44,60 @@ namespace OnlineJobs.Controllers
 
         public async Task<IActionResult> Details(Guid id)
         {
-            var job = await _jobService.GetJobByIdAsync(id);
-            if (job == null)
-                return NotFound();
-
-            var company = await _companyService.GetCompanyByIdAsync(job.CompanyId);
-            ViewBag.Company = company;
-
-            var applicationCount = await _applicationService.GetApplicationCountForJobAsync(id);
-            ViewBag.ApplicationCount = applicationCount;
-
-            var userId = GetCurrentUserId();
-            if (userId.HasValue)
+            try
             {
-                var hasApplied = await _applicationService.HasAlreadyAppliedAsync(id, userId.Value);
-                ViewBag.HasApplied = hasApplied;
-            }
+                var realAccess = new RealJobPostingAccess(_jobService);
+                var userId = GetCurrentUserId();
+                var isAuthenticated = IsUserLoggedIn();
 
-            return View(job);
+                var jobProxy = new JobPostingProtectionProxy(realAccess, isAuthenticated, userId);
+
+                var job = await jobProxy.GetJobDetailsAsync(id);
+                if (job == null)
+                {
+                    TempData["ErrorMessage"] = $"Job with ID {id} not found in database";
+                    return RedirectToAction("Index");
+                }
+
+                ViewBag.Company = job.Company;
+                ViewBag.CompanyName = jobProxy.GetCompanyName(job);
+                ViewBag.SalaryRange = jobProxy.GetSalaryRange(job);
+                ViewBag.IsAuthenticated = isAuthenticated;
+                ViewBag.ApplicationCount = 0;
+                ViewBag.HasApplied = false;
+
+                try
+                {
+                    var applicationCount = await _applicationService.GetApplicationCountForJobAsync(id);
+                    ViewBag.ApplicationCount = applicationCount;
+                }
+                catch (Exception appEx)
+                {
+                    Console.WriteLine($"Warning: Could not load application count: {appEx.Message}");
+                }
+
+                if (userId.HasValue && IsJobSeeker())
+                {
+                    try
+                    {
+                        var hasApplied = await _applicationService.HasAlreadyAppliedAsync(id, userId.Value);
+                        ViewBag.HasApplied = hasApplied;
+                    }
+                    catch (Exception applyEx)
+                    {
+                        Console.WriteLine($"Warning: Could not check if user applied: {applyEx.Message}");
+                    }
+                }
+
+                return View(job);
+            }
+            catch (Exception ex)
+            {
+                var errorDetails = $"Error loading job {id}: {ex.Message}\nStack: {ex.StackTrace}";
+                Console.WriteLine(errorDetails);
+                TempData["ErrorMessage"] = $"Error loading job details: {ex.Message}";
+                return RedirectToAction("Index");
+            }
         }
 
         public async Task<IActionResult> Create()
@@ -97,11 +137,21 @@ namespace OnlineJobs.Controllers
                 if (!employerId.HasValue)
                     return RedirectToAction("Login", "Account");
 
+                // Get employer's company ID
+                var employer = await _userService.GetEmployerAsync(employerId.Value);
+                if (employer?.CompanyId == null)
+                {
+                    ModelState.AddModelError(string.Empty, "Your account is not associated with a company. Please contact support.");
+                    var companies = await _companyService.GetAllCompaniesAsync();
+                    ViewBag.Companies = companies;
+                    return View(model);
+                }
+
                 var job = await _jobService.CreateJobAsync(
                     model.Title,
                     model.Description,
                     employerId.Value,
-                    model.CompanyId
+                    employer.CompanyId.Value
                 );
 
                 job.Requirements = model.Requirements;

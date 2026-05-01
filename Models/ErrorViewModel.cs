@@ -1,4 +1,4 @@
-namespace OnlineJobs.Web.Models
+namespace OnlineJobs.Models
 {
     public class ErrorViewModel
     {
