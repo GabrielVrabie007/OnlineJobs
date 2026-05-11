@@ -1,5 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using OnlineJobs.Application.Interfaces;
+using OnlineJobs.Application.Commands;
+using OnlineJobs.Application.Commands.ApplicationCommands;
+using OnlineJobs.Application.Iterators;
+using OnlineJobs.Application.Mementos;
+using OnlineJobs.Application.Observers;
+using OnlineJobs.Application.Strategies.ScoringStrategies;
+using OnlineJobs.Domain.Entities;
 using OnlineJobs.Domain.Enums;
 using OnlineJobs.Models;
 
@@ -10,15 +17,30 @@ namespace OnlineJobs.Controllers
         private readonly IApplicationService _applicationService;
         private readonly IJobService _jobService;
         private readonly ICompanyService _companyService;
+        private readonly IRepository<JobApplication> _applicationRepository;
+        private readonly IRepository<JobSeeker> _jobSeekerRepository;
+        private readonly CommandInvoker _commandInvoker;
+        private readonly ApplicationStatusSubject _applicationStatusSubject;
+        private readonly ApplicationDraftManager _draftManager;
 
         public ApplicationController(
             IApplicationService applicationService,
             IJobService jobService,
-            ICompanyService companyService)
+            ICompanyService companyService,
+            IRepository<JobApplication> applicationRepository,
+            IRepository<JobSeeker> jobSeekerRepository,
+            CommandInvoker commandInvoker,
+            ApplicationStatusSubject applicationStatusSubject,
+            ApplicationDraftManager draftManager)
         {
             _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
             _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
             _companyService = companyService ?? throw new ArgumentNullException(nameof(companyService));
+            _applicationRepository = applicationRepository ?? throw new ArgumentNullException(nameof(applicationRepository));
+            _jobSeekerRepository = jobSeekerRepository ?? throw new ArgumentNullException(nameof(jobSeekerRepository));
+            _commandInvoker = commandInvoker ?? throw new ArgumentNullException(nameof(commandInvoker));
+            _applicationStatusSubject = applicationStatusSubject ?? throw new ArgumentNullException(nameof(applicationStatusSubject));
+            _draftManager = draftManager ?? throw new ArgumentNullException(nameof(draftManager));
         }
 
         [HttpGet]
@@ -74,25 +96,24 @@ namespace OnlineJobs.Controllers
                 if (!userId.HasValue)
                     return RedirectToAction("Login", "Account");
 
-                // Create application with enhanced details
-                var application = await _applicationService.SubmitApplicationAsync(
+                var emailObserver = new EmailAlertObserver();
+                var dashboardObserver = new DashboardNotificationObserver();
+                var auditObserver = new AuditLogObserver();
+
+                _applicationStatusSubject.Attach(emailObserver);
+                _applicationStatusSubject.Attach(dashboardObserver);
+                _applicationStatusSubject.Attach(auditObserver);
+
+                var submitCommand = new SubmitApplicationCommand(
+                    _applicationRepository,
                     model.JobId,
                     userId.Value,
                     model.CoverLetter
                 );
 
-                // Update additional properties
-                application.ExpectedSalary = model.ExpectedSalary;
-                application.PortfolioLink = model.PortfolioLink;
-                application.AvailableStartDate = model.AvailableStartDate;
-                application.AdditionalInfo = model.AdditionalInfo;
+                await _commandInvoker.ExecuteAsync(submitCommand);
 
-                // TODO: Handle Resume file upload
-                if (model.Resume != null)
-                {
-                    // Save resume file and set ResumeUrl
-                    // application.ResumeUrl = await SaveResumeFile(model.Resume);
-                }
+                _draftManager.DeleteDraft(userId.Value, model.JobId);
 
                 TempData["SuccessMessage"] = "Application submitted successfully!";
                 return RedirectToAction("MyApplications");
@@ -104,7 +125,37 @@ namespace OnlineJobs.Controllers
             }
         }
 
-        public async Task<IActionResult> MyApplications()
+        [HttpPost]
+        public IActionResult SaveDraft(Guid jobId, string coverLetter)
+        {
+            var userId = GetCurrentUserId();
+            if (!userId.HasValue)
+                return Json(new { success = false, message = "User not logged in" });
+
+            var memento = new ApplicationFormMemento(jobId, userId.Value, coverLetter);
+            _draftManager.SaveDraft(userId.Value, jobId, memento);
+
+            return Json(new { success = true, message = "Draft saved successfully" });
+        }
+
+        [HttpGet]
+        public IActionResult LoadDraft(Guid jobId)
+        {
+            var userId = GetCurrentUserId();
+            if (!userId.HasValue)
+                return Json(new { success = false });
+
+            var draft = _draftManager.GetDraft(userId.Value, jobId);
+
+            if (draft != null)
+            {
+                return Json(new { success = true, coverLetter = draft.CoverLetter, createdAt = draft.CreatedAt });
+            }
+
+            return Json(new { success = false });
+        }
+
+        public async Task<IActionResult> MyApplications(string? filter = null, string? sort = null)
         {
             if (!IsJobSeeker())
             {
@@ -117,20 +168,40 @@ namespace OnlineJobs.Controllers
                 return RedirectToAction("Login", "Account");
 
             var applications = await _applicationService.GetApplicationsByJobSeekerAsync(userId.Value);
+            var applicationCollection = new ApplicationCollection(applications);
+
+            IIterator<JobApplication> iterator;
+
+            if (!string.IsNullOrEmpty(filter) && Enum.TryParse<ApplicationStatus>(filter, out var status))
+            {
+                iterator = applicationCollection.CreateFilteredIterator(status);
+            }
+            else if (sort == "date")
+            {
+                iterator = applicationCollection.CreateDateOrderedIterator(ascending: false);
+            }
+            else
+            {
+                iterator = applicationCollection.CreateIterator();
+            }
 
             var viewModels = new List<ApplicationDetailsViewModel>();
 
-            foreach (var app in applications)
+            while (iterator.HasNext())
             {
+                var app = iterator.Next();
                 var job = await _jobService.GetJobByIdAsync(app.JobPostingId);
                 var company = job != null ? await _companyService.GetCompanyByIdAsync(job.CompanyId) : null;
                 viewModels.Add(ApplicationDetailsViewModel.FromEntities(app, job, company));
             }
 
+            ViewBag.Filter = filter;
+            ViewBag.Sort = sort;
+
             return View(viewModels);
         }
 
-        public async Task<IActionResult> ReceivedApplications()
+        public async Task<IActionResult> ReceivedApplications(Guid? jobId = null)
         {
             if (!IsEmployer())
             {
@@ -142,16 +213,33 @@ namespace OnlineJobs.Controllers
             if (!employerId.HasValue)
                 return RedirectToAction("Login", "Account");
 
-            var applications = await _applicationService.GetApplicationsByEmployerAsync(employerId.Value);
+            IEnumerable<JobApplication> applications;
 
-            var enrichedApplications = new List<(Domain.Entities.JobApplication Application, Domain.Entities.JobPosting? Job, Domain.Entities.JobSeeker JobSeeker)>();
+            if (jobId.HasValue)
+            {
+                applications = await _applicationService.GetApplicationsByJobPostingAsync(jobId.Value);
+            }
+            else
+            {
+                applications = await _applicationService.GetApplicationsByEmployerAsync(employerId.Value);
+            }
+
+            var enrichedApplications = new List<(JobApplication Application, JobPosting? Job, Domain.Entities.JobSeeker JobSeeker, int Score)>();
+            var scoringStrategy = new ComprehensiveScoringStrategy();
 
             foreach (var app in applications)
             {
                 var job = await _jobService.GetJobByIdAsync(app.JobPostingId);
-                var jobSeeker = await GetJobSeekerByIdAsync(app.JobSeekerId);
-                enrichedApplications.Add((app, job, jobSeeker));
+                var jobSeeker = await _jobSeekerRepository.GetByIdAsync(app.JobSeekerId);
+
+                if (jobSeeker != null && job != null)
+                {
+                    var score = scoringStrategy.CalculateScore(jobSeeker, job);
+                    enrichedApplications.Add((app, job, jobSeeker, score));
+                }
             }
+
+            enrichedApplications = enrichedApplications.OrderByDescending(x => x.Score).ToList();
 
             return View(enrichedApplications);
         }
@@ -208,8 +296,22 @@ namespace OnlineJobs.Controllers
                 if (application.JobSeekerId != userId.Value)
                     return Forbid();
 
-                await _applicationService.WithdrawApplicationAsync(id);
-                TempData["SuccessMessage"] = "Application withdrawn successfully.";
+                var emailObserver = new EmailAlertObserver();
+                var auditObserver = new AuditLogObserver();
+
+                _applicationStatusSubject.Attach(emailObserver);
+                _applicationStatusSubject.Attach(auditObserver);
+
+                var withdrawCommand = new WithdrawApplicationCommand(_applicationRepository, id);
+                await _commandInvoker.ExecuteAsync(withdrawCommand);
+
+                var updatedApplication = await _applicationService.GetApplicationByIdAsync(id);
+                if (updatedApplication != null)
+                {
+                    await _applicationStatusSubject.NotifyAsync(updatedApplication);
+                }
+
+                TempData["SuccessMessage"] = "Application withdrawn successfully. You can undo this action if needed.";
             }
             catch (Exception ex)
             {
@@ -228,23 +330,45 @@ namespace OnlineJobs.Controllers
 
             try
             {
-                switch (status?.ToLower())
+                var emailObserver = new EmailAlertObserver();
+                var dashboardObserver = new DashboardNotificationObserver();
+                var auditObserver = new AuditLogObserver();
+
+                _applicationStatusSubject.Attach(emailObserver);
+                _applicationStatusSubject.Attach(dashboardObserver);
+                _applicationStatusSubject.Attach(auditObserver);
+
+                ICommand command = status?.ToLower() switch
                 {
-                    case "review":
-                        await _applicationService.StartReviewAsync(id);
-                        break;
-                    case "interview":
-                        await _applicationService.MoveToInterviewAsync(id);
-                        break;
-                    case "accept":
-                        await _applicationService.AcceptApplicationAsync(id);
-                        break;
-                    case "reject":
-                        await _applicationService.RejectApplicationAsync(id);
-                        break;
-                    default:
-                        TempData["ErrorMessage"] = "Invalid status";
-                        return RedirectToAction("ReceivedApplications");
+                    "accept" => new ApproveApplicationCommand(_applicationRepository, id),
+                    "reject" => new RejectApplicationCommand(_applicationRepository, id),
+                    _ => null
+                };
+
+                if (command != null)
+                {
+                    await _commandInvoker.ExecuteAsync(command);
+                }
+                else
+                {
+                    switch (status?.ToLower())
+                    {
+                        case "review":
+                            await _applicationService.StartReviewAsync(id);
+                            break;
+                        case "interview":
+                            await _applicationService.MoveToInterviewAsync(id);
+                            break;
+                        default:
+                            TempData["ErrorMessage"] = "Invalid status";
+                            return RedirectToAction("ReceivedApplications");
+                    }
+                }
+
+                var updatedApplication = await _applicationService.GetApplicationByIdAsync(id);
+                if (updatedApplication != null)
+                {
+                    await _applicationStatusSubject.NotifyAsync(updatedApplication);
                 }
 
                 TempData["SuccessMessage"] = "Application status updated successfully.";
@@ -254,6 +378,21 @@ namespace OnlineJobs.Controllers
                 TempData["ErrorMessage"] = ex.Message;
             }
 
+            return RedirectToAction("ReceivedApplications");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UndoLastAction()
+        {
+            var result = await _commandInvoker.UndoAsync();
+            if (result)
+            {
+                TempData["SuccessMessage"] = "Last action undone successfully.";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "No action to undo.";
+            }
             return RedirectToAction("ReceivedApplications");
         }
 

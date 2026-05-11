@@ -1,0 +1,118 @@
+@model IEnumerable<(OnlineJobs.Domain.Entities.JobApplication Application, OnlineJobs.Domain.Entities.JobPosting? Job, OnlineJobs.Domain.Entities.JobSeeker JobSeeker, int Score)>
+
+@{
+    ViewData["Title"] = "Received Applications";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Received Applications</h2>
+        <span class="badge bg-primary">@Model.Count() Applications</span>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No applications received yet.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var item in Model)
+            {
+                var app = item.Application;
+                var job = item.Job;
+                var jobSeeker = item.JobSeeker;
+                var score = item.Score;
+
+                <div class="col-md-12 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h5 class="card-title">
+                                        @jobSeeker.FirstName @jobSeeker.LastName
+                                        <span class="badge bg-success ms-2">Match Score: @score%</span>
+                                    </h5>
+                                    <p class="text-muted mb-2">
+                                        <strong>Position:</strong> @job?.Title<br/>
+                                        <strong>Applied:</strong> @app.AppliedDate.ToString("MMM dd, yyyy")<br/>
+                                        <strong>Status:</strong>
+                                        <span class="badge
+                                            @(app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted ? "bg-info" :
+                                              app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview ? "bg-warning" :
+                                              app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing ? "bg-primary" :
+                                              app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Accepted ? "bg-success" :
+                                              app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Rejected ? "bg-danger" : "bg-secondary")">
+                                            @app.Status
+                                        </span>
+                                    </p>
+                                    <p class="card-text">
+                                        <strong>Cover Letter Preview:</strong><br/>
+                                        @(app.CoverLetter.Length > 200 ? app.CoverLetter.Substring(0, 200) + "..." : app.CoverLetter)
+                                    </p>
+                                </div>
+
+                                <div class="col-md-4 text-end">
+                                    <div class="btn-group-vertical w-100" role="group">
+                                        <a href="@Url.Action("Details", "Application", new { id = app.Id })"
+                                           class="btn btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View Details
+                                        </a>
+
+                                        @if (app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted)
+                                        {
+                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@app.Id" />
+                                                <input type="hidden" name="status" value="review" />
+                                                <button type="submit" class="btn btn-outline-warning w-100 mt-2">
+                                                    <i class="bi bi-search"></i> Start Review
+                                                </button>
+                                            </form>
+                                        }
+
+                                        @if (app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview)
+                                        {
+                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@app.Id" />
+                                                <input type="hidden" name="status" value="interview" />
+                                                <button type="submit" class="btn btn-outline-info w-100 mt-2">
+                                                    <i class="bi bi-calendar-check"></i> Schedule Interview
+                                                </button>
+                                            </form>
+                                        }
+
+                                        @if (app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing ||
+                                             app.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview)
+                                        {
+                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@app.Id" />
+                                                <input type="hidden" name="status" value="accept" />
+                                                <button type="submit" class="btn btn-success w-100 mt-2">
+                                                    <i class="bi bi-check-circle"></i> Accept Application
+                                                </button>
+                                            </form>
+                                        }
+
+                                        @if (app.Status != OnlineJobs.Domain.Enums.ApplicationStatus.Rejected &&
+                                             app.Status != OnlineJobs.Domain.Enums.ApplicationStatus.Accepted)
+                                        {
+                                            <form asp-action="UpdateStatus" method="post" class="d-inline">
+                                                <input type="hidden" name="id" value="@app.Id" />
+                                                <input type="hidden" name="status" value="reject" />
+                                                <button type="submit" class="btn btn-danger w-100 mt-2">
+                                                    <i class="bi bi-x-circle"></i> Reject Application
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

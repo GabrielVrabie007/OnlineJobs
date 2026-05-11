@@ -67,6 +67,28 @@ builder.Services.AddSingleton<SkillFlyweightFactory>();
 // Lab 5 - Bridge Pattern - Reporting Service
 builder.Services.AddScoped<ReportingService>();
 
+// Lab 6 - Observer Pattern
+builder.Services.AddSingleton<OnlineJobs.Application.Observers.JobPostingSubject>();
+builder.Services.AddSingleton<OnlineJobs.Application.Observers.ApplicationStatusSubject>();
+builder.Services.AddTransient<OnlineJobs.Application.Observers.JobSeekerObserver>();
+builder.Services.AddTransient<OnlineJobs.Application.Observers.EmailAlertObserver>();
+builder.Services.AddTransient<OnlineJobs.Application.Observers.DashboardNotificationObserver>();
+builder.Services.AddTransient<OnlineJobs.Application.Observers.StatisticsObserver>();
+builder.Services.AddTransient<OnlineJobs.Application.Observers.AuditLogObserver>();
+
+// Lab 6 - Command Pattern
+builder.Services.AddScoped<OnlineJobs.Application.Commands.CommandHistory>();
+builder.Services.AddScoped<OnlineJobs.Application.Commands.CommandInvoker>();
+
+// Lab 6 - Memento Pattern
+builder.Services.AddSingleton<OnlineJobs.Application.Mementos.ProfileHistory>();
+builder.Services.AddSingleton<OnlineJobs.Application.Mementos.JobPostingDraftManager>();
+builder.Services.AddSingleton<OnlineJobs.Application.Mementos.ApplicationDraftManager>();
+
+// Lab 6 - Strategy Pattern (Additional Strategies)
+builder.Services.AddTransient<OnlineJobs.Application.Strategies.SalaryStrategies.ISalaryCalculationStrategy, OnlineJobs.Application.Strategies.SalaryStrategies.AnnualSalaryStrategy>();
+builder.Services.AddTransient<OnlineJobs.Application.Strategies.ScoringStrategies.IApplicationScoringStrategy, OnlineJobs.Application.Strategies.ScoringStrategies.ComprehensiveScoringStrategy>();
+
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<JobService>();
 builder.Services.AddScoped<ApplicationService>();

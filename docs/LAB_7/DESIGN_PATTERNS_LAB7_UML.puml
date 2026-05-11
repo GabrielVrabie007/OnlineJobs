@@ -1,0 +1,462 @@
+@startuml Chain_of_Responsibility
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Application.ApprovalChains" {
+    interface IApprovalHandler {
+        +SetNext(next: IApprovalHandler): IApprovalHandler
+        +HandleAsync(request: ApprovalRequest): Task<ApprovalResult>
+    }
+
+    abstract class BaseApprovalHandler {
+        -_next: IApprovalHandler
+        +SetNext(next: IApprovalHandler): IApprovalHandler
+        +{abstract} HandleAsync(request: ApprovalRequest): Task<ApprovalResult>
+        #PassToNextAsync(request: ApprovalRequest): Task<ApprovalResult>
+    }
+
+    class ApprovalRequest {
+        +ApplicationId: Guid
+        +JobPostingId: Guid
+        +RequesterId: Guid
+        +TargetStatus: ApplicationStatus
+        +JobSalary: decimal?
+        +RequesterRole: UserType
+        +Metadata: Dictionary<string, object>
+    }
+
+    class ApprovalResult {
+        +IsApproved: bool
+        +ApprovedBy: string
+        +Reason: string
+        +RequiresEscalation: bool
+        +NextApproverLevel: string
+        +{static} Approved(approvedBy: string, reason: string): ApprovalResult
+        +{static} Rejected(rejectedBy: string, reason: string): ApprovalResult
+        +{static} Escalated(currentLevel: string, nextLevel: string, reason: string): ApprovalResult
+    }
+
+    class AutomatedScreeningHandler {
+        -_applicationRepository: IRepository<JobApplication>
+        -_jobSeekerRepository: IRepository<JobSeeker>
+        +HandleAsync(request: ApprovalRequest): Task<ApprovalResult>
+    }
+
+    class HRReviewHandler {
+        -MaxApprovalAmount: decimal = 80000
+        +HandleAsync(request: ApprovalRequest): Task<ApprovalResult>
+    }
+
+    class ManagerApprovalHandler {
+        -MaxApprovalAmount: decimal = 150000
+        +HandleAsync(request: ApprovalRequest): Task<ApprovalResult>
+    }
+
+    class DirectorApprovalHandler {
+        -MaxApprovalAmount: decimal = 500000
+        +HandleAsync(request: ApprovalRequest): Task<ApprovalResult>
+    }
+
+    class ApprovalChainFactory {
+        -_applicationRepository: IRepository<JobApplication>
+        -_jobSeekerRepository: IRepository<JobSeeker>
+        +CreateStandardChain(): IApprovalHandler
+        +CreateFastTrackChain(): IApprovalHandler
+    }
+}
+
+IApprovalHandler <|.. BaseApprovalHandler
+BaseApprovalHandler <|-- AutomatedScreeningHandler
+BaseApprovalHandler <|-- HRReviewHandler
+BaseApprovalHandler <|-- ManagerApprovalHandler
+BaseApprovalHandler <|-- DirectorApprovalHandler
+
+ApprovalChainFactory ..> AutomatedScreeningHandler : creates
+ApprovalChainFactory ..> HRReviewHandler : creates
+ApprovalChainFactory ..> ManagerApprovalHandler : creates
+ApprovalChainFactory ..> DirectorApprovalHandler : creates
+
+BaseApprovalHandler --> ApprovalRequest : uses
+BaseApprovalHandler --> ApprovalResult : returns
+
+@enduml
+
+@startuml State_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Application.States.ApplicationStates" {
+    interface IApplicationState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class SubmittedState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class UnderReviewState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class InterviewingState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class AcceptedState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class RejectedState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class WithdrawnState {
+        +StateName: string
+        +StartReview(application: JobApplication): void
+        +MoveToInterview(application: JobApplication): void
+        +Accept(application: JobApplication): void
+        +Reject(application: JobApplication, reason: string): void
+        +Withdraw(application: JobApplication): void
+        +CanTransitionTo(targetState: string): bool
+    }
+
+    class ApplicationStateContext {
+        +{static} GetStateFromStatus(status: ApplicationStatus): IApplicationState
+        +{static} InitializeState(application: JobApplication): void
+    }
+}
+
+package "Domain.Entities" {
+    class JobApplication {
+        -_currentState: object
+        +CurrentState: object
+        +Status: ApplicationStatus
+        +TransitionToState(newState: object): void
+    }
+}
+
+IApplicationState <|.. SubmittedState
+IApplicationState <|.. UnderReviewState
+IApplicationState <|.. InterviewingState
+IApplicationState <|.. AcceptedState
+IApplicationState <|.. RejectedState
+IApplicationState <|.. WithdrawnState
+
+ApplicationStateContext ..> IApplicationState : creates
+JobApplication --> IApplicationState : uses
+
+SubmittedState ..> UnderReviewState : transitions
+SubmittedState ..> RejectedState : transitions
+SubmittedState ..> WithdrawnState : transitions
+UnderReviewState ..> InterviewingState : transitions
+UnderReviewState ..> RejectedState : transitions
+UnderReviewState ..> WithdrawnState : transitions
+InterviewingState ..> AcceptedState : transitions
+InterviewingState ..> RejectedState : transitions
+
+@enduml
+
+@startuml Mediator_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Application.Mediators" {
+    interface "IMediator<TRequest, TResponse>" {
+        +HandleAsync(request: TRequest): Task<TResponse>
+    }
+
+    class MediatorResult {
+        +Success: bool
+        +Message: string
+        +Data: Dictionary<string, object>
+        +Errors: List<string>
+        +{static} SuccessResult(message: string, data: Dictionary): MediatorResult
+        +{static} FailureResult(message: string, errors: List): MediatorResult
+    }
+
+    class SubmitApplicationRequest {
+        +JobId: Guid
+        +UserId: Guid
+        +CoverLetter: string
+        +ExpectedSalary: decimal?
+        +PortfolioLink: string
+        +AvailableStartDate: DateTime?
+    }
+
+    class WithdrawApplicationRequest {
+        +ApplicationId: Guid
+        +UserId: Guid
+    }
+
+    class UpdateStatusRequest {
+        +ApplicationId: Guid
+        +EmployerId: Guid
+        +Status: string
+        +TargetStatus: ApplicationStatus?
+    }
+
+    class ApplicationWorkflowMediator {
+        -_applicationRepository: IRepository<JobApplication>
+        -_commandInvoker: CommandInvoker
+        -_applicationStatusSubject: ApplicationStatusSubject
+        -_draftManager: ApplicationDraftManager
+        +HandleAsync(request: SubmitApplicationRequest): Task<MediatorResult>
+    }
+
+    class NotificationMediator {
+        -_statusSubject: ApplicationStatusSubject
+        -_jobPostingSubject: JobPostingSubject
+        +NotifyApplicationStatusChangeAsync(application: object): Task
+        +NotifyJobPostingAsync(jobPosting: object): Task
+    }
+}
+
+"IMediator<TRequest, TResponse>" <|.. ApplicationWorkflowMediator
+
+ApplicationWorkflowMediator --> SubmitApplicationRequest : handles
+ApplicationWorkflowMediator --> MediatorResult : returns
+ApplicationWorkflowMediator ..> CommandInvoker : coordinates
+ApplicationWorkflowMediator ..> ApplicationStatusSubject : coordinates
+ApplicationWorkflowMediator ..> ApplicationDraftManager : coordinates
+
+NotificationMediator ..> ApplicationStatusSubject : uses
+NotificationMediator ..> JobPostingSubject : uses
+
+@enduml
+
+@startuml Template_Method
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Application.ReportTemplates" {
+    interface IReportTemplate {
+        +GenerateReportAsync(): Task<ReportResult>
+        +ReportName: string
+        +FileExtension: string
+    }
+
+    abstract class "BaseReportTemplate<T>" {
+        +{abstract} ReportName: string
+        +{abstract} FileExtension: string
+        +GenerateReportAsync(): Task<ReportResult>
+        #{abstract} FetchDataAsync(): Task<IEnumerable<T>>
+        #ValidateData(data: IEnumerable<T>): void
+        #ProcessData(data: IEnumerable<T>): IEnumerable<T>
+        #{abstract} FormatReportData(data: IEnumerable<T>): ReportData<T>
+        #{abstract} ExportReportAsync(reportData: ReportData<T>): Task<ReportResult>
+        #PreExportHook(reportData: ReportData<T>): void
+        #PostExportHook(result: ReportResult): void
+    }
+
+    class "ReportData<T>" {
+        +Title: string
+        +GeneratedAt: DateTime
+        +Data: List<T>
+        +Metadata: Dictionary<string, object>
+    }
+
+    class ReportResult {
+        +Success: bool
+        +FileName: string
+        +Content: byte[]
+        +ContentType: string
+        +ErrorMessage: string
+        +{static} SuccessResult(fileName: string, content: byte[], contentType: string): ReportResult
+        +{static} FailureResult(errorMessage: string): ReportResult
+    }
+
+    abstract class ApplicationReportTemplate {
+        #_applicationRepository: IRepository<JobApplication>
+        #FetchDataAsync(): Task<IEnumerable<JobApplication>>
+        #ProcessData(data: IEnumerable<JobApplication>): IEnumerable<JobApplication>
+    }
+
+    class CSVApplicationReportTemplate {
+        +ReportName: string
+        +FileExtension: string
+        #FormatReportData(data: IEnumerable<JobApplication>): ReportData<JobApplication>
+        #ExportReportAsync(reportData: ReportData<JobApplication>): Task<ReportResult>
+    }
+
+    class JSONApplicationReportTemplate {
+        +ReportName: string
+        +FileExtension: string
+        #FormatReportData(data: IEnumerable<JobApplication>): ReportData<JobApplication>
+        #ExportReportAsync(reportData: ReportData<JobApplication>): Task<ReportResult>
+    }
+}
+
+IReportTemplate <|.. "BaseReportTemplate<T>"
+"BaseReportTemplate<T>" <|-- ApplicationReportTemplate
+ApplicationReportTemplate <|-- CSVApplicationReportTemplate
+ApplicationReportTemplate <|-- JSONApplicationReportTemplate
+
+"BaseReportTemplate<T>" --> "ReportData<T>" : uses
+"BaseReportTemplate<T>" --> ReportResult : returns
+
+@enduml
+
+@startuml Visitor_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Application.Visitors" {
+    interface "IApplicationVisitor<T>" {
+        +VisitJobApplication(application: JobApplication): T
+        +VisitJobPosting(jobPosting: JobPosting): T
+    }
+
+    class CompensationPackage {
+        +BaseSalary: decimal
+        +BenefitsValue: decimal
+        +EquityValue: decimal
+        +BonusValue: decimal
+        +TotalValue: decimal
+        +Description: string
+        +GetFormattedTotal(): string
+        +GetBreakdown(): string
+    }
+
+    class CompensationCalculatorVisitor {
+        -StandardBenefitsPercentage: decimal = 0.20
+        -StandardEquityPercentage: decimal = 0.05
+        -StandardBonusPercentage: decimal = 0.10
+        +VisitJobPosting(jobPosting: JobPosting): CompensationPackage
+        +VisitJobApplication(application: JobApplication): CompensationPackage
+    }
+
+    class AnalyticsResult {
+        +TotalViews: int
+        +TotalApplications: int
+        +InterviewsScheduled: int
+        +Hires: int
+        +ConversionRate: double
+        +TimeToHireAverage: double
+        +StatusBreakdown: Dictionary<string, int>
+        +GetApplicationRate(): double
+        +GetInterviewRate(): double
+        +GetHireRate(): double
+    }
+
+    class AnalyticsVisitor {
+        +VisitJobPosting(jobPosting: JobPosting): AnalyticsResult
+        +VisitJobApplication(application: JobApplication): AnalyticsResult
+    }
+
+    class ExportVisitor {
+        -_format: string
+        +VisitJobApplication(application: JobApplication): string
+        +VisitJobPosting(jobPosting: JobPosting): string
+        -ExportAsJson(entity: object): string
+        -ExportAsXml(entity: object): string
+        -ExportAsCsv(entity: object): string
+    }
+}
+
+package "Domain.Entities" {
+    class JobApplication {
+        +Accept<T>(visitor: object): T
+    }
+
+    class JobPosting {
+        +Accept<T>(visitor: object): T
+    }
+}
+
+"IApplicationVisitor<T>" <|.. CompensationCalculatorVisitor
+"IApplicationVisitor<T>" <|.. AnalyticsVisitor
+"IApplicationVisitor<T>" <|.. ExportVisitor
+
+CompensationCalculatorVisitor --> CompensationPackage : returns
+AnalyticsVisitor --> AnalyticsResult : returns
+ExportVisitor --> "string" : returns
+
+JobApplication ..> "IApplicationVisitor<T>" : accepts
+JobPosting ..> "IApplicationVisitor<T>" : accepts
+
+@enduml
+
+@startuml LAB7_Integration_Overview
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+title LAB 7 Patterns Integration in OnlineJobs Platform
+
+rectangle "Chain of Responsibility\n(Approval Workflow)" as COR {
+    [AutomatedScreening] --> [HRReview]
+    [HRReview] --> [ManagerApproval]
+    [ManagerApproval] --> [DirectorApproval]
+}
+
+rectangle "State Pattern\n(Application Lifecycle)" as STATE {
+    [Submitted] --> [UnderReview]
+    [UnderReview] --> [Interviewing]
+    [Interviewing] --> [Accepted]
+    [Interviewing] --> [Rejected]
+    [UnderReview] --> [Withdrawn]
+}
+
+rectangle "Mediator Pattern\n(Component Coordination)" as MED {
+    [ApplicationWorkflow\nMediator]
+    [Notification\nMediator]
+}
+
+rectangle "Template Method\n(Report Generation)" as TEMP {
+    [BaseReportTemplate] --> [CSV Report]
+    [BaseReportTemplate] --> [JSON Report]
+}
+
+rectangle "Visitor Pattern\n(Entity Operations)" as VIS {
+    [Compensation\nCalculator]
+    [Analytics\nVisitor]
+    [Export\nVisitor]
+}
+
+actor Employer
+actor JobSeeker
+
+JobSeeker --> MED : Submit Application
+MED --> COR : Validate & Approve
+COR --> STATE : Update Status
+STATE --> MED : Notify Changes
+MED --> VIS : Calculate Metrics
+Employer --> TEMP : Generate Reports
+Employer --> VIS : View Analytics
+
+@enduml

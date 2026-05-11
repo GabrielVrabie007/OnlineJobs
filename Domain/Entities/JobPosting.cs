@@ -230,5 +230,16 @@ namespace OnlineJobs.Domain.Entities
             modifications?.Invoke(clone);
             return clone;
         }
+
+        public T Accept<T>(object visitor)
+        {
+            var method = visitor.GetType().GetMethod("VisitJobPosting");
+            if (method != null)
+            {
+                var result = method.Invoke(visitor, new object[] { this });
+                return result != null ? (T)result : default!;
+            }
+            throw new InvalidOperationException("Visitor does not support JobPosting");
+        }
     }
 }

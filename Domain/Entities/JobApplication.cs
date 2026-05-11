@@ -1,10 +1,12 @@
 using OnlineJobs.Domain.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace OnlineJobs.Domain.Entities
 {
     public class JobApplication
     {
         private string? _coverLetter;
+        private object? _currentState;
 
         public Guid Id { get; private set; }
 
@@ -13,6 +15,13 @@ namespace OnlineJobs.Domain.Entities
 
         public JobPosting? JobPosting { get; set; }
         public JobSeeker? JobSeeker { get; set; }
+
+        [NotMapped]
+        public object? CurrentState
+        {
+            get => _currentState;
+            private set => _currentState = value;
+        }
 
         public string CoverLetter
         {
@@ -113,6 +122,22 @@ namespace OnlineJobs.Domain.Entities
         public int GetDaysSinceApplication()
         {
             return (DateTime.UtcNow - AppliedDate).Days;
+        }
+
+        public void TransitionToState(object newState)
+        {
+            CurrentState = newState;
+        }
+
+        public T Accept<T>(object visitor)
+        {
+            var method = visitor.GetType().GetMethod("VisitJobApplication");
+            if (method != null)
+            {
+                var result = method.Invoke(visitor, new object[] { this });
+                return result != null ? (T)result : default!;
+            }
+            throw new InvalidOperationException("Visitor does not support JobApplication");
         }
     }
 }

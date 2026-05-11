@@ -1,0 +1,979 @@
+@startuml Observer_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "Application.Observers" #LightBlue {
+    interface ISubject {
+        +Attach(observer: IObserver): void
+        +Detach(observer: IObserver): void
+        +NotifyAsync(data: object): Task
+    }
+
+    interface IObserver {
+        +UpdateAsync(data: object): Task
+    }
+
+    class JobPostingSubject {
+        -_observers: List<IObserver>
+        -_lock: object
+        +Attach(observer: IObserver): void
+        +Detach(observer: IObserver): void
+        +NotifyAsync(data: object): Task
+    }
+
+    class ApplicationStatusSubject {
+        -_observers: List<IObserver>
+        -_lock: object
+        +Attach(observer: IObserver): void
+        +Detach(observer: IObserver): void
+        +NotifyAsync(data: object): Task
+    }
+
+    class EmailAlertObserver {
+        +UpdateAsync(data: object): Task
+    }
+
+    class DashboardNotificationObserver {
+        +DashboardNotifications: List<string>
+        +UpdateAsync(data: object): Task
+    }
+
+    class StatisticsObserver {
+        +JobPostCount: int
+        +ApplicationStatusChanges: int
+        +UpdateAsync(data: object): Task
+    }
+
+    class AuditLogObserver {
+        +AuditLog: List<string>
+        +UpdateAsync(data: object): Task
+    }
+
+    class JobSeekerObserver {
+        -_jobSeekerRepository: IRepository<JobSeeker>
+        +UpdateAsync(data: object): Task
+    }
+}
+
+package "Controllers" #LightGreen {
+    class ApplicationController {
+        -_applicationStatusSubject: ApplicationStatusSubject
+        +Apply(jobPostingId: Guid, coverLetter: string): Task<IActionResult>
+        +Withdraw(id: Guid): Task<IActionResult>
+        +UpdateStatus(id: Guid, status: string): Task<IActionResult>
+    }
+
+    class PatternsController {
+        -_jobPostingSubject: JobPostingSubject
+        +ObserverDemo(): Task<IActionResult>
+    }
+}
+
+ISubject <|.. JobPostingSubject
+ISubject <|.. ApplicationStatusSubject
+IObserver <|.. EmailAlertObserver
+IObserver <|.. DashboardNotificationObserver
+IObserver <|.. StatisticsObserver
+IObserver <|.. AuditLogObserver
+IObserver <|.. JobSeekerObserver
+
+JobPostingSubject o--> "many" IObserver : notifies
+ApplicationStatusSubject o--> "many" IObserver : notifies
+ApplicationController --> ApplicationStatusSubject : uses
+PatternsController --> JobPostingSubject : uses
+
+note right of JobPostingSubject
+  **Thread-safe Subject**
+  Maintains list of observers and
+  notifies them when job postings
+  are created or updated
+
+  **Flow:**
+  1. Controller creates/updates job
+  2. Subject.NotifyAsync() called
+  3. All observers receive notification
+  4. Each observer processes independently
+end note
+
+note right of EmailAlertObserver
+  **Real-world Usage:**
+  - Send email when job posted
+  - Notify when application status changes
+  - Alert job seekers of new opportunities
+end note
+
+@enduml
+
+@startuml Iterator_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "Application.Iterators" #LightCoral {
+    interface "IIterator<T>" {
+        +HasNext(): bool
+        +Next(): T
+        +Reset(): void
+    }
+
+    class ApplicationCollection {
+        -_applications: List<JobApplication>
+        +ApplicationCollection(applications: IEnumerable<JobApplication>)
+        +CreateFilteredIterator(status: ApplicationStatus): IIterator<JobApplication>
+        +CreateDateOrderedIterator(ascending: bool): IIterator<JobApplication>
+    }
+
+    class FilteredApplicationIterator {
+        -_applications: List<JobApplication>
+        -_status: ApplicationStatus
+        -_currentPosition: int
+        +HasNext(): bool
+        +Next(): JobApplication
+        +Reset(): void
+    }
+
+    class DateOrderedApplicationIterator {
+        -_applications: List<JobApplication>
+        -_currentPosition: int
+        +HasNext(): bool
+        +Next(): JobApplication
+        +Reset(): void
+    }
+
+    class JobCollection {
+        -_jobs: List<JobPosting>
+        +CreatePaginatedIterator(pageSize: int, pageNumber: int): IIterator<JobPosting>
+        +CreateCategoryFilteredIterator(category: string): IIterator<JobPosting>
+    }
+
+    class PaginatedJobIterator {
+        -_jobs: List<JobPosting>
+        -_currentPosition: int
+        +PageSize: int
+        +CurrentPage: int
+        +TotalPages: int
+        +HasNext(): bool
+        +Next(): JobPosting
+        +Reset(): void
+    }
+
+    class CategoryCollection {
+        -_rootCategory: JobCategory
+        +CreateDepthFirstIterator(): IIterator<JobCategory>
+        +CreateBreadthFirstIterator(): IIterator<JobCategory>
+    }
+
+    class DepthFirstCategoryIterator {
+        -_flattenedCategories: List<JobCategory>
+        -_currentPosition: int
+        +HasNext(): bool
+        +Next(): JobCategory
+        +Reset(): void
+    }
+
+    class BreadthFirstCategoryIterator {
+        -_flattenedCategories: List<JobCategory>
+        -_currentPosition: int
+        +HasNext(): bool
+        +Next(): JobCategory
+        +Reset(): void
+    }
+}
+
+package "Controllers" #LightGreen {
+    class ApplicationController {
+        +MyApplications(): Task<IActionResult>
+    }
+
+    class PatternsController {
+        +IteratorDemo(): Task<IActionResult>
+    }
+}
+
+"IIterator<T>" <|.. FilteredApplicationIterator
+"IIterator<T>" <|.. DateOrderedApplicationIterator
+"IIterator<T>" <|.. PaginatedJobIterator
+"IIterator<T>" <|.. DepthFirstCategoryIterator
+"IIterator<T>" <|.. BreadthFirstCategoryIterator
+
+ApplicationCollection --> FilteredApplicationIterator : creates
+ApplicationCollection --> DateOrderedApplicationIterator : creates
+JobCollection --> PaginatedJobIterator : creates
+CategoryCollection --> DepthFirstCategoryIterator : creates
+CategoryCollection --> BreadthFirstCategoryIterator : creates
+
+ApplicationController --> ApplicationCollection : uses
+PatternsController --> ApplicationCollection : uses
+PatternsController --> JobCollection : uses
+
+note right of ApplicationCollection
+  **Iterator Factory**
+  Provides different ways to traverse
+  job applications:
+  - By status (Submitted, Approved, etc.)
+  - By date (ascending/descending)
+
+  **Flow:**
+  1. Create collection with data
+  2. Request specific iterator type
+  3. Iterate using HasNext()/Next()
+  4. Process each element sequentially
+end note
+
+note right of PaginatedJobIterator
+  **Pagination Support**
+  - Calculate total pages
+  - Track current page
+  - Return page-sized chunks
+
+  **Real-world Usage:**
+  Job listing pages showing 10 jobs at a time
+end note
+
+note left of CategoryCollection
+  **Tree Traversal**
+  Supports both DFS and BFS traversal
+  of hierarchical job categories
+  (Composite pattern integration)
+end note
+
+@enduml
+
+@startuml Strategy_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "Application.Strategies.SalaryStrategies" #LightYellow {
+    interface ISalaryCalculationStrategy {
+        +CalculateAnnualSalary(inputValue: decimal): decimal
+        +GetSalaryDescription(inputValue: decimal): string
+    }
+
+    class HourlyRateStrategy {
+        +CalculateAnnualSalary(hourlyRate: decimal): decimal
+        +GetSalaryDescription(hourlyRate: decimal): string
+    }
+
+    class AnnualSalaryStrategy {
+        +CalculateAnnualSalary(annualSalary: decimal): decimal
+        +GetSalaryDescription(annualSalary: decimal): string
+    }
+
+    class CommissionBasedStrategy {
+        -_baseSalary: decimal
+        -_commissionPercentage: decimal
+        +CalculateAnnualSalary(estimatedSales: decimal): decimal
+        +GetSalaryDescription(estimatedSales: decimal): string
+    }
+
+    class FreelanceProjectStrategy {
+        +CalculateAnnualSalary(projectRate: decimal): decimal
+        +GetSalaryDescription(projectRate: decimal): string
+    }
+}
+
+package "Application.Strategies.ScoringStrategies" #LightSalmon {
+    interface IApplicationScoringStrategy {
+        +CalculateScore(jobSeeker: JobSeeker, jobPosting: JobPosting): int
+    }
+
+    class SkillMatchScoringStrategy {
+        +CalculateScore(jobSeeker: JobSeeker, jobPosting: JobPosting): int
+    }
+
+    class ExperienceScoringStrategy {
+        +CalculateScore(jobSeeker: JobSeeker, jobPosting: JobPosting): int
+    }
+
+    class EducationScoringStrategy {
+        +CalculateScore(jobSeeker: JobSeeker, jobPosting: JobPosting): int
+    }
+
+    class ComprehensiveScoringStrategy {
+        +CalculateScore(jobSeeker: JobSeeker, jobPosting: JobPosting): int
+    }
+}
+
+package "Controllers" #LightGreen {
+    class ApplicationController {
+        +ReceivedApplications(jobPostingId: Guid): Task<IActionResult>
+    }
+
+    class PatternsController {
+        +StrategyDemo(): Task<IActionResult>
+    }
+}
+
+ISalaryCalculationStrategy <|.. HourlyRateStrategy
+ISalaryCalculationStrategy <|.. AnnualSalaryStrategy
+ISalaryCalculationStrategy <|.. CommissionBasedStrategy
+ISalaryCalculationStrategy <|.. FreelanceProjectStrategy
+
+IApplicationScoringStrategy <|.. SkillMatchScoringStrategy
+IApplicationScoringStrategy <|.. ExperienceScoringStrategy
+IApplicationScoringStrategy <|.. EducationScoringStrategy
+IApplicationScoringStrategy <|.. ComprehensiveScoringStrategy
+
+ApplicationController --> ComprehensiveScoringStrategy : uses
+PatternsController --> ISalaryCalculationStrategy : uses
+PatternsController --> IApplicationScoringStrategy : uses
+
+note right of ISalaryCalculationStrategy
+  **Salary Calculation Strategies**
+  Different compensation models:
+  - Hourly: Rate × 2080 hours/year
+  - Annual: Direct annual salary
+  - Commission: Base + Sales × %
+  - Freelance: Projects × 8 per year
+
+  **Flow:**
+  1. Select strategy based on job type
+  2. Pass input value to strategy
+  3. Strategy calculates annual equivalent
+  4. Get formatted description
+end note
+
+note right of ComprehensiveScoringStrategy
+  **Weighted Scoring Algorithm**
+  Combines multiple factors:
+  - Skills match: 50%
+  - Experience: 30%
+  - Education: 20%
+
+  **Real-world Usage:**
+  Ranking applicants on employer's
+  "Received Applications" page
+
+  **Flow:**
+  1. For each application
+  2. Calculate individual scores
+  3. Apply weights
+  4. Rank by total score
+end note
+
+note left of SkillMatchScoringStrategy
+  **Skill Matching**
+  Compares job seeker's skills
+  with job requirements:
+
+  score = (matching_skills / required_skills) × 100
+
+  Returns 0-100 percentage match
+end note
+
+@enduml
+
+@startuml Command_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "Application.Commands" #LightBlue {
+    interface ICommand {
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+
+    class CommandInvoker {
+        -_history: CommandHistory
+        +ExecuteAsync(command: ICommand): Task
+        +UndoAsync(): Task<bool>
+        +RedoAsync(): Task<bool>
+        +CanUndo(): bool
+        +CanRedo(): bool
+        +GetCommandHistory(): List<string>
+    }
+
+    class CommandHistory {
+        -_undoStack: Stack<ICommand>
+        -_redoStack: Stack<ICommand>
+        -_maxHistorySize: int
+        +Push(command: ICommand): void
+        +PopUndo(): ICommand
+        +PopRedo(): ICommand
+        +PushRedo(command: ICommand): void
+        +CanUndo(): bool
+        +CanRedo(): bool
+        +GetHistory(): List<string>
+        +Clear(): void
+    }
+}
+
+package "Application.Commands.ApplicationCommands" #LightCoral {
+    class SubmitApplicationCommand {
+        -_repository: IRepository<JobApplication>
+        -_application: JobApplication
+        -_previousStatus: ApplicationStatus
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+
+    class WithdrawApplicationCommand {
+        -_repository: IRepository<JobApplication>
+        -_applicationId: Guid
+        -_previousStatus: ApplicationStatus
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+
+    class ApproveApplicationCommand {
+        -_repository: IRepository<JobApplication>
+        -_applicationId: Guid
+        -_previousStatus: ApplicationStatus
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+
+    class RejectApplicationCommand {
+        -_repository: IRepository<JobApplication>
+        -_applicationId: Guid
+        -_previousStatus: ApplicationStatus
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+}
+
+package "Application.Commands.JobPostingCommands" #LightYellow {
+    class PublishJobPostingCommand {
+        -_repository: IRepository<JobPosting>
+        -_jobPostingId: Guid
+        -_previousStatus: string
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+
+    class CloseJobPostingCommand {
+        -_repository: IRepository<JobPosting>
+        -_jobPostingId: Guid
+        -_previousStatus: string
+        +ExecuteAsync(): Task
+        +UndoAsync(): Task
+        +GetDescription(): string
+    }
+}
+
+package "Controllers" #LightGreen {
+    class ApplicationController {
+        -_commandInvoker: CommandInvoker
+        +Apply(jobPostingId: Guid, coverLetter: string): Task<IActionResult>
+        +Withdraw(id: Guid): Task<IActionResult>
+        +UpdateStatus(id: Guid, status: string): Task<IActionResult>
+    }
+
+    class PatternsController {
+        -_commandInvoker: CommandInvoker
+        +CommandDemo(): Task<IActionResult>
+        +UndoCommand(): Task<IActionResult>
+        +RedoCommand(): Task<IActionResult>
+    }
+}
+
+ICommand <|.. SubmitApplicationCommand
+ICommand <|.. WithdrawApplicationCommand
+ICommand <|.. ApproveApplicationCommand
+ICommand <|.. RejectApplicationCommand
+ICommand <|.. PublishJobPostingCommand
+ICommand <|.. CloseJobPostingCommand
+
+CommandInvoker --> CommandHistory : uses
+CommandInvoker --> ICommand : executes
+
+ApplicationController --> CommandInvoker : uses
+PatternsController --> CommandInvoker : uses
+
+note right of CommandInvoker
+  **Command Invoker**
+  Manages command execution and history
+
+  **Flow:**
+  1. Receive command from controller
+  2. Execute command
+  3. Push to undo stack
+  4. Clear redo stack
+  5. User can undo/redo operations
+
+  **Benefits:**
+  - Decouples sender from receiver
+  - Supports undo/redo
+  - Command history tracking
+  - Transactional operations
+end note
+
+note right of CommandHistory
+  **Stack-based History**
+  - Undo stack: executed commands
+  - Redo stack: undone commands
+  - Max size: 50 commands
+
+  When execute:
+  - Clear redo stack
+  - Push to undo stack
+
+  When undo:
+  - Pop from undo stack
+  - Push to redo stack
+end note
+
+note left of SubmitApplicationCommand
+  **Real-world Usage:**
+  Job seeker submits application
+  - Stores previous status
+  - Can undo if needed
+  - Integrated with Observer pattern
+
+  **Example Flow:**
+  1. User clicks "Apply"
+  2. SubmitApplicationCommand created
+  3. CommandInvoker.ExecuteAsync()
+  4. Application status → Submitted
+  5. Observer notifies employer
+  6. User can undo if mistake
+end note
+
+@enduml
+
+@startuml Memento_Pattern
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "Application.Mementos" #LightSalmon {
+    interface IMemento {
+        +CreatedAt: DateTime
+        +GetDescription(): string
+    }
+
+    class ProfileMemento {
+        +JobSeekerId: Guid
+        +PhoneNumber: string
+        +Location: string
+        +Summary: string
+        +SkillSet: List<Skill>
+        +WorkHistory: List<WorkExperience>
+        +EducationHistory: List<Education>
+        +Certifications: List<Certification>
+        +CreatedAt: DateTime
+        +GetDescription(): string
+    }
+
+    class JobPostingMemento {
+        +JobPostingId: Guid
+        +Title: string
+        +Description: string
+        +Requirements: string
+        +Category: string
+        +EmploymentType: string
+        +SalaryMin: decimal
+        +SalaryMax: decimal
+        +SkillRequirements: List<JobSkillRequirement>
+        +CreatedAt: DateTime
+        +GetDescription(): string
+    }
+
+    class ApplicationFormMemento {
+        +JobPostingId: Guid
+        +JobSeekerId: Guid
+        +CoverLetter: string
+        +CreatedAt: DateTime
+        +GetDescription(): string
+    }
+
+    class ProfileHistory <<Caretaker>> {
+        -_history: Dictionary<Guid, List<ProfileMemento>>
+        +SaveMemento(jobSeekerId: Guid, memento: ProfileMemento): void
+        +GetLatestMemento(jobSeekerId: Guid): ProfileMemento
+        +GetHistory(jobSeekerId: Guid): List<ProfileMemento>
+        +RestoreMemento(jobSeekerId: Guid, index: int): ProfileMemento
+    }
+
+    class JobPostingDraftManager <<Caretaker>> {
+        -_drafts: Dictionary<Guid, List<JobPostingMemento>>
+        +SaveDraft(jobPostingId: Guid, memento: JobPostingMemento): void
+        +GetLatestDraft(jobPostingId: Guid): JobPostingMemento
+        +GetAllDrafts(jobPostingId: Guid): List<JobPostingMemento>
+        +DeleteDraft(jobPostingId: Guid, index: int): void
+    }
+
+    class ApplicationDraftManager <<Caretaker>> {
+        -_drafts: Dictionary<string, ApplicationFormMemento>
+        +SaveDraft(jobSeekerId: Guid, jobPostingId: Guid, memento: ApplicationFormMemento): void
+        +GetDraft(jobSeekerId: Guid, jobPostingId: Guid): ApplicationFormMemento
+        +DeleteDraft(jobSeekerId: Guid, jobPostingId: Guid): void
+    }
+}
+
+package "Domain.Entities" #LightBlue {
+    class JobSeeker <<Originator>> {
+        +Id: Guid
+        +PhoneNumber: string
+        +ProfessionalSummary: string
+        +SkillSet: List<Skill>
+        +WorkHistory: List<WorkExperience>
+        +EducationHistory: List<Education>
+        +Certifications: List<Certification>
+    }
+
+    class JobPosting <<Originator>> {
+        +Id: Guid
+        +Title: string
+        +Description: string
+        +Requirements: string
+        +Category: string
+        +EmploymentType: string
+        +SalaryMin: decimal
+        +SalaryMax: decimal
+        +SkillRequirements: List<JobSkillRequirement>
+    }
+}
+
+package "Controllers" #LightGreen {
+    class ApplicationController {
+        -_applicationDraftManager: ApplicationDraftManager
+        +SaveDraft(jobPostingId: Guid, coverLetter: string): Task<IActionResult>
+        +LoadDraft(jobPostingId: Guid): Task<IActionResult>
+        +Apply(jobPostingId: Guid, coverLetter: string): Task<IActionResult>
+    }
+
+    class PatternsController {
+        -_profileHistory: ProfileHistory
+        -_draftManager: JobPostingDraftManager
+        -_applicationDraftManager: ApplicationDraftManager
+        +MementoDemo(): Task<IActionResult>
+        +SaveApplicationDraft(jobSeekerId: Guid, jobPostingId: Guid, coverLetter: string): IActionResult
+        +GetApplicationDraft(jobSeekerId: Guid, jobPostingId: Guid): IActionResult
+    }
+}
+
+IMemento <|.. ProfileMemento
+IMemento <|.. JobPostingMemento
+IMemento <|.. ApplicationFormMemento
+
+ProfileHistory o--> "many" ProfileMemento : manages
+JobPostingDraftManager o--> "many" JobPostingMemento : manages
+ApplicationDraftManager o--> "many" ApplicationFormMemento : manages
+
+ProfileMemento ..> JobSeeker : captures state
+JobPostingMemento ..> JobPosting : captures state
+
+ApplicationController --> ApplicationDraftManager : uses
+PatternsController --> ProfileHistory : uses
+PatternsController --> JobPostingDraftManager : uses
+PatternsController --> ApplicationDraftManager : uses
+
+note right of IMemento
+  **Memento Interface**
+  Provides timestamp and description
+  for all saved states
+end note
+
+note right of ProfileHistory
+  **Caretaker for Job Seeker Profiles**
+  Maintains history of profile changes
+
+  **Flow:**
+  1. Job seeker edits profile
+  2. Create ProfileMemento (snapshot)
+  3. ProfileHistory.SaveMemento()
+  4. Store in dictionary by JobSeekerId
+  5. Can restore previous versions
+
+  **Use Cases:**
+  - Profile version control
+  - Undo profile changes
+  - A/B testing different profiles
+end note
+
+note right of ApplicationDraftManager
+  **Auto-save Application Forms**
+  Prevents data loss when applying
+
+  **Flow:**
+  1. User starts filling application
+  2. JavaScript auto-saves every 30s
+  3. ApplicationFormMemento created
+  4. Saved with composite key (jobSeekerId + jobPostingId)
+  5. On page refresh, draft restored
+  6. On submit, draft deleted
+
+  **Real-world Benefits:**
+  - Browser crash recovery
+  - Multi-device continuation
+  - Prevents duplicate applications
+end note
+
+note left of JobPostingDraftManager
+  **Draft Management**
+  Employers can save job postings
+  as drafts before publishing
+
+  **Features:**
+  - Multiple drafts per job
+  - Timestamped versions
+  - Restore any draft version
+  - Delete specific drafts
+end note
+
+note bottom of ApplicationController
+  **Integration Example:**
+
+  Apply() method:
+  1. Check for existing draft
+  2. If found, use draft data
+  3. Submit application (Command pattern)
+  4. Notify observers (Observer pattern)
+  5. Delete draft (Memento cleanup)
+
+  **Multiple patterns working together!**
+end note
+
+@enduml
+
+@startuml Patterns_Integration_Flow
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Job Application Submission - All Patterns Working Together
+
+actor "Job Seeker" as seeker
+participant "Application\nController" as controller
+participant "Application\nDraftManager" as memento
+participant "Submit\nCommand" as command
+participant "Command\nInvoker" as invoker
+participant "Application\nStatusSubject" as subject
+participant "Email\nObserver" as email
+participant "Dashboard\nObserver" as dashboard
+participant "Comprehensive\nScoringStrategy" as strategy
+database "Repository" as repo
+
+seeker -> controller : Apply(jobPostingId, coverLetter)
+activate controller
+
+controller -> memento : GetDraft(jobSeekerId, jobPostingId)
+note right: **Memento Pattern**\nLoad auto-saved draft
+memento --> controller : draft (if exists)
+
+controller -> command : new SubmitApplicationCommand(application)
+note right: **Command Pattern**\nEncapsulate request
+
+controller -> invoker : ExecuteAsync(command)
+activate invoker
+
+invoker -> command : ExecuteAsync()
+activate command
+
+command -> repo : UpdateAsync(application)
+note right: Change status to Submitted
+repo --> command : success
+
+command --> invoker : success
+invoker -> invoker : Push to undo stack
+note right: Enable undo functionality
+deactivate command
+
+invoker --> controller : success
+deactivate invoker
+
+controller -> subject : NotifyAsync(application)
+note right: **Observer Pattern**\nNotify all observers
+activate subject
+
+subject -> email : UpdateAsync(application)
+activate email
+email -> email : Send email to employer
+email --> subject : done
+deactivate email
+
+subject -> dashboard : UpdateAsync(application)
+activate dashboard
+dashboard -> dashboard : Add notification
+dashboard --> subject : done
+deactivate dashboard
+
+subject --> controller : done
+deactivate subject
+
+controller -> memento : DeleteDraft(jobSeekerId, jobPostingId)
+note right: **Memento Pattern**\nClean up draft after submission
+memento --> controller : deleted
+
+controller --> seeker : Application submitted successfully
+
+note over seeker, repo
+  **Employer Views Applications**
+  Uses **Strategy Pattern** to rank applicants
+  Uses **Iterator Pattern** to filter/paginate
+end note
+
+@enduml
+
+@startuml Command_Undo_Flow
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Command Pattern - Undo/Redo Flow
+
+actor "User" as user
+participant "Controller" as controller
+participant "Command\nInvoker" as invoker
+participant "Command\nHistory" as history
+participant "Command" as command
+database "Repository" as repo
+
+user -> controller : Execute Action
+controller -> command : new Command(data)
+controller -> invoker : ExecuteAsync(command)
+activate invoker
+
+invoker -> command : ExecuteAsync()
+activate command
+command -> repo : Update entity
+repo --> command : success
+command --> invoker : success
+deactivate command
+
+invoker -> history : Push(command)
+activate history
+history -> history : Add to undo stack
+history -> history : Clear redo stack
+note right: Redo cleared after new execution
+history --> invoker : done
+deactivate history
+
+invoker --> controller : success
+controller --> user : Success message
+
+== User Clicks Undo ==
+
+user -> controller : Undo()
+controller -> invoker : UndoAsync()
+activate invoker
+
+invoker -> history : CanUndo()
+history --> invoker : true
+
+invoker -> history : PopUndo()
+history --> invoker : command
+
+invoker -> command : UndoAsync()
+activate command
+command -> repo : Restore previous state
+repo --> command : success
+command --> invoker : success
+deactivate command
+
+invoker -> history : PushRedo(command)
+activate history
+history -> history : Add to redo stack
+history --> invoker : done
+deactivate history
+
+invoker --> controller : success
+deactivate invoker
+controller --> user : Undo successful
+
+== User Clicks Redo ==
+
+user -> controller : Redo()
+controller -> invoker : RedoAsync()
+activate invoker
+
+invoker -> history : CanRedo()
+history --> invoker : true
+
+invoker -> history : PopRedo()
+history --> invoker : command
+
+invoker -> command : ExecuteAsync()
+activate command
+command -> repo : Re-apply changes
+repo --> command : success
+command --> invoker : success
+deactivate command
+
+invoker -> history : Push(command)
+activate history
+history -> history : Add back to undo stack
+history --> invoker : done
+deactivate history
+
+invoker --> controller : success
+deactivate invoker
+controller --> user : Redo successful
+
+@enduml
+
+@startuml Iterator_Pattern_Flow
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+title Iterator Pattern - Multiple Traversal Strategies
+
+actor "Employer" as employer
+participant "Application\nController" as controller
+participant "Application\nCollection" as collection
+participant "Filtered\nIterator" as filtered
+participant "Date Ordered\nIterator" as dated
+participant "Comprehensive\nScoring" as scoring
+
+employer -> controller : ReceivedApplications(jobPostingId)
+activate controller
+
+controller -> controller : Get all applications for job
+controller -> collection : new ApplicationCollection(applications)
+
+== Filter by Status ==
+
+controller -> collection : CreateFilteredIterator(Submitted)
+collection -> filtered : new FilteredIterator(applications, Submitted)
+collection --> controller : iterator
+
+loop while HasNext()
+    controller -> filtered : Next()
+    filtered --> controller : application
+    controller -> scoring : CalculateScore(jobSeeker, jobPosting)
+    note right: **Strategy Pattern**\nScore each application
+    scoring --> controller : score
+    controller -> controller : Add to list with score
+end
+
+== Sort by Date ==
+
+controller -> collection : CreateDateOrderedIterator(descending)
+collection -> dated : new DateOrderedIterator(applications, false)
+collection --> controller : iterator
+
+loop while HasNext() && count < 10
+    controller -> dated : Next()
+    dated --> controller : application (most recent first)
+    controller -> controller : Add to recent list
+end
+
+controller -> controller : Sort applications by score
+controller --> employer : Display ranked applications
+
+note over employer, scoring
+  **Benefits of Iterator Pattern:**
+  1. Uniform interface for different collections
+  2. Multiple traversal algorithms
+  3. Clean separation of concerns
+  4. Easy to add new iteration strategies
+
+  **Real Usage:**
+  - Filter by status (Submitted, Approved, Rejected)
+  - Sort by date (newest/oldest first)
+  - Paginate results (10 per page)
+  - Filter by score threshold
+end note
+
+@enduml
