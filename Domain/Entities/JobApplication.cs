@@ -105,6 +105,22 @@ namespace OnlineJobs.Domain.Entities
             }
         }
 
+        /// <summary>
+        /// Restores a previous status. Used by the Command pattern to undo a status
+        /// change (Approve/Reject/Withdraw) — an explicit, intent-revealing revert that
+        /// replaces brittle reflection on the Status property.
+        /// </summary>
+        public void RestoreStatus(ApplicationStatus previousStatus)
+        {
+            Status = previousStatus;
+            // Clearing the reviewed timestamp keeps the record consistent after an undo.
+            if (previousStatus == ApplicationStatus.Submitted)
+            {
+                ReviewedDate = null;
+                ReviewNotes = null;
+            }
+        }
+
         public bool CanBeWithdrawn()
         {
             return Status != ApplicationStatus.Accepted &&

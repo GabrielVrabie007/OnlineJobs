@@ -2,7 +2,6 @@ using OnlineJobs.Application.Interfaces;
 
 namespace OnlineJobs.Application.Reporting.Reports
 {
-
     public class JobReport : BaseReport
     {
         private readonly IJobService _jobService;
@@ -14,23 +13,48 @@ namespace OnlineJobs.Application.Reporting.Reports
             _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
         }
 
-        public override async Task<Dictionary<string, object>> GenerateDataAsync()
+        public override async Task<ReportDocument> BuildAsync()
         {
-            var jobs = await _jobService.GetActiveJobsAsync();
+            var jobs = (await _jobService.GetActiveJobsAsync()).ToList();
+            var doc = new ReportDocument { Title = Title };
 
-            var data = new Dictionary<string, object>
+            var withMin = jobs.Where(j => j.SalaryMin.HasValue).Select(j => j.SalaryMin!.Value).ToList();
+            var withMax = jobs.Where(j => j.SalaryMax.HasValue).Select(j => j.SalaryMax!.Value).ToList();
+
+            doc.AddSummary("Active job postings", jobs.Count.ToString());
+            doc.AddSummary("Total applications", jobs.Sum(j => j.GetApplicationCount()).ToString());
+            doc.AddSummary("Posted in last 30 days", jobs.Count(j => j.PostedDate >= DateTime.Now.AddMonths(-1)).ToString());
+            doc.AddSummary("Average minimum salary", withMin.Any() ? withMin.Average().ToString("C0") : "—");
+            doc.AddSummary("Average maximum salary", withMax.Any() ? withMax.Average().ToString("C0") : "—");
+            doc.AddSummary("Most common category",
+                jobs.Any() ? jobs.GroupBy(j => j.Category ?? "—").OrderByDescending(g => g.Count()).First().Key : "—");
+
+            doc.Columns.AddRange(new[] { "Title", "Company", "Category", "Location", "Type", "Salary", "Status", "Posted", "Applications" });
+            foreach (var j in jobs.OrderByDescending(j => j.PostedDate))
             {
-                { "Total Active Jobs", jobs.Count() },
-                { "Report Date", DateTime.Now.ToString("yyyy-MM-dd") },
-                { "Average Salary Min", jobs.Where(j => j.SalaryMin.HasValue).Average(j => j.SalaryMin ?? 0).ToString("C0") },
-                { "Average Salary Max", jobs.Where(j => j.SalaryMax.HasValue).Average(j => j.SalaryMax ?? 0).ToString("C0") },
-                { "Top Category", jobs.GroupBy(j => j.Category).OrderByDescending(g => g.Count()).First().Key },
-                { "Top Location", jobs.GroupBy(j => j.Location).OrderByDescending(g => g.Count()).First().Key },
-                { "Jobs Posted This Month", jobs.Count(j => j.PostedDate >= DateTime.Now.AddMonths(-1)) },
-                { "Total Applications", jobs.Sum(j => j.GetApplicationCount()) }
-            };
+                doc.Rows.Add(new[]
+                {
+                    j.Title,
+                    j.Company?.Name ?? "—",
+                    j.Category ?? "—",
+                    string.IsNullOrWhiteSpace(j.Location) ? "—" : j.Location,
+                    string.IsNullOrWhiteSpace(j.EmploymentType) ? "—" : j.EmploymentType,
+                    FormatSalary(j.SalaryMin, j.SalaryMax),
+                    j.Status.ToString(),
+                    j.PostedDate.ToString("yyyy-MM-dd"),
+                    j.GetApplicationCount().ToString()
+                });
+            }
 
-            return data;
+            return doc;
+        }
+
+        private static string FormatSalary(decimal? min, decimal? max)
+        {
+            if (min.HasValue && max.HasValue) return $"{min:C0} - {max:C0}";
+            if (min.HasValue) return $"from {min:C0}";
+            if (max.HasValue) return $"up to {max:C0}";
+            return "-";
         }
     }
 }

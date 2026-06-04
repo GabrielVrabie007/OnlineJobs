@@ -7,6 +7,10 @@ namespace OnlineJobs.Application.Interfaces
     public interface IJobService
     {
         Task<JobPosting> CreateJobAsync(string title, string description, Guid employerId, Guid companyId);
+
+        /// <summary>Prototype pattern: clone an existing posting into a fresh Draft owned by the same employer.</summary>
+        Task<JobPosting> DuplicateJobAsync(Guid jobId, Guid employerId);
+
         Task<JobPosting> GetJobByIdAsync(Guid jobId);
         Task<IEnumerable<JobPosting>> GetActiveJobsAsync();
         Task UpdateJobAsync(JobPosting job);

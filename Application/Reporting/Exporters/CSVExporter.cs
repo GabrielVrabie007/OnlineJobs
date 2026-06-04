@@ -2,48 +2,43 @@ using System.Text;
 
 namespace OnlineJobs.Application.Reporting.Exporters
 {
-    /// <summary>
-    /// Bridge Pattern - LAB 5
-    /// Concrete Implementor - CSV export format.
-    /// </summary>
+    /// <summary>Bridge Implementor — clean, valid CSV that opens directly in Excel.</summary>
     public class CSVExporter : IReportExporter
     {
         public string Format => "CSV";
         public string FileExtension => ".csv";
+        public string ContentType => "text/csv";
 
-        public async Task<string> ExportAsync(string reportTitle, Dictionary<string, object> data)
+        public byte[] Export(ReportDocument document)
         {
-            return await Task.Run(() =>
+            var sb = new StringBuilder();
+            sb.AppendLine(Escape(document.Title));
+            sb.AppendLine($"Generated,{document.GeneratedAt:yyyy-MM-dd HH:mm}");
+            sb.AppendLine();
+
+            sb.AppendLine("Summary");
+            foreach (var kvp in document.Summary)
+                sb.AppendLine($"{Escape(kvp.Key)},{Escape(kvp.Value)}");
+            sb.AppendLine();
+
+            if (document.Columns.Count > 0)
             {
-                var sb = new StringBuilder();
+                sb.AppendLine("Records");
+                sb.AppendLine(string.Join(",", document.Columns.Select(Escape)));
+                foreach (var row in document.Rows)
+                    sb.AppendLine(string.Join(",", row.Select(Escape)));
+            }
 
-                sb.AppendLine(GenerateHeader(reportTitle));
-                sb.AppendLine("\n\"Field\",\"Value\"");
-
-                foreach (var kvp in data)
-                {
-                    // Escape quotes in CSV
-                    var field = kvp.Key.Replace("\"", "\"\"");
-                    var value = kvp.Value?.ToString()?.Replace("\"", "\"\"") ?? "";
-
-                    sb.AppendLine($"\"{field}\",\"{value}\"");
-                }
-
-                sb.AppendLine(GenerateFooter());
-
-                return sb.ToString();
-            });
+            // UTF-8 BOM so Excel renders accents/symbols correctly.
+            return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
         }
 
-        public string GenerateHeader(string title)
+        private static string Escape(string? value)
         {
-            return $"# CSV REPORT: {title}\n" +
-                   $"# Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-        }
-
-        public string GenerateFooter()
-        {
-            return $"\n# End of CSV report";
+            value ??= string.Empty;
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return $"\"{value.Replace("\"", "\"\"")}\"";
+            return value;
         }
     }
 }

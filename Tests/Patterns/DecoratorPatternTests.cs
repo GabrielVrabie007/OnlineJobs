@@ -62,13 +62,13 @@ namespace OnlineJobs.Tests.Patterns
         public async Task LoggingDecorator_ShouldAddLogging()
         {
             // Arrange
-            LoggingNotificationDecorator.ClearLog();
-            INotification notification = new BaseNotification();
-            notification = new LoggingNotificationDecorator(notification);
+            INotification baseNotification = new BaseNotification();
+            var loggingDecorator = new LoggingNotificationDecorator(baseNotification);
+            INotification notification = loggingDecorator;
 
             // Act
             await notification.SendAsync("test@example.com", "Subject", "Message");
-            var log = LoggingNotificationDecorator.GetNotificationLog();
+            var log = loggingDecorator.GetNotificationLog();
 
             // Assert
             Assert.NotEmpty(log);

@@ -21,7 +21,8 @@ namespace OnlineJobs.Application.Decorators
                 ? message.Substring(0, 157) + "..."
                 : message;
 
-            // TODO: Integrate with actual SMS service (Twilio, AWS SNS, etc.)
+            // Simulated external channel — swap for Twilio/AWS SNS in production.
+            Console.WriteLine($"[Notify/SMS] -> {recipient}: {smsMessage}");
             await Task.CompletedTask;
         }
 

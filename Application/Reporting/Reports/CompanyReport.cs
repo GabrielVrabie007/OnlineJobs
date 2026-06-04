@@ -2,7 +2,6 @@ using OnlineJobs.Application.Interfaces;
 
 namespace OnlineJobs.Application.Reporting.Reports
 {
-
     public class CompanyReport : BaseReport
     {
         private readonly ICompanyService _companyService;
@@ -14,22 +13,33 @@ namespace OnlineJobs.Application.Reporting.Reports
             _companyService = companyService ?? throw new ArgumentNullException(nameof(companyService));
         }
 
-        public override async Task<Dictionary<string, object>> GenerateDataAsync()
+        public override async Task<ReportDocument> BuildAsync()
         {
-            var companies = await _companyService.GetAllCompaniesAsync();
+            var companies = (await _companyService.GetAllCompaniesAsync()).ToList();
+            var doc = new ReportDocument { Title = Title };
 
-            var data = new Dictionary<string, object>
+            doc.AddSummary("Total companies", companies.Count.ToString());
+            doc.AddSummary("Total employees", companies.Sum(c => c.EmployeeCount ?? 0).ToString("N0"));
+            doc.AddSummary("Average company size",
+                companies.Any() ? ((int)companies.Average(c => c.EmployeeCount ?? 0)).ToString("N0") : "—");
+            doc.AddSummary("With a website", companies.Count(c => !string.IsNullOrEmpty(c.Website)).ToString());
+            doc.AddSummary("Most common industry",
+                companies.Any() ? companies.GroupBy(c => c.Industry ?? "—").OrderByDescending(g => g.Count()).First().Key : "—");
+
+            doc.Columns.AddRange(new[] { "Company", "Industry", "Location", "Employees", "Website" });
+            foreach (var c in companies.OrderByDescending(c => c.EmployeeCount))
             {
-                { "Total Companies", companies.Count() },
-                { "Report Date", DateTime.Now.ToString("yyyy-MM-dd") },
-                { "Average Employees", ((int)companies.Average(c => c.EmployeeCount)).ToString() },
-                { "Largest Company", companies.OrderByDescending(c => c.EmployeeCount).First().Name },
-                { "Top Industry", companies.GroupBy(c => c.Industry).OrderByDescending(g => g.Count()).First().Key },
-                { "Companies with Website", companies.Count(c => !string.IsNullOrEmpty(c.Website)) },
-                { "Total Employees", companies.Sum(c => c.EmployeeCount).ToString() }
-            };
+                doc.Rows.Add(new[]
+                {
+                    c.Name,
+                    string.IsNullOrWhiteSpace(c.Industry) ? "—" : c.Industry,
+                    string.IsNullOrWhiteSpace(c.Location) ? "—" : c.Location,
+                    (c.EmployeeCount ?? 0).ToString("N0"),
+                    string.IsNullOrWhiteSpace(c.Website) ? "—" : c.Website
+                });
+            }
 
-            return data;
+            return doc;
         }
     }
 }

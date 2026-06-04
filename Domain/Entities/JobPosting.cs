@@ -206,7 +206,10 @@ namespace OnlineJobs.Domain.Entities
         /// <returns>A shallow copy of the JobPosting</returns>
         public JobPosting ShallowCopy()
         {
-            return (JobPosting)this.MemberwiseClone();
+            var copy = (JobPosting)this.MemberwiseClone();
+            // Give the copy its own collection so mutating it can't corrupt the original.
+            copy.Applications = new List<JobApplication>();
+            return copy;
         }
 
         /// <summary>

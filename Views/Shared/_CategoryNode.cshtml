@@ -1,0 +1,39 @@
+@model OnlineJobs.Domain.Entities.JobCategory
+@*
+    One Composite node. Branches recurse into their children; leaves link to the
+    job list filtered by that category. Same partial handles both — that uniform
+    treatment is the point of the Composite pattern.
+*@
+@if (Model.IsComposite())
+{
+    var composite = (OnlineJobs.Domain.Entities.CategoryComposite)Model;
+    <li class="mb-2">
+        <span class="fw-bold"><i class="bi bi-folder2-open text-warning"></i> @Model.Name</span>
+        <span class="badge bg-secondary ms-1">@Model.GetJobCount()</span>
+        <ul class="list-unstyled ms-4 mt-2">
+            @foreach (var child in composite.Children)
+            {
+                @await Html.PartialAsync("_CategoryNode", child)
+            }
+        </ul>
+    </li>
+}
+else
+{
+    var count = Model.GetJobCount();
+    <li class="mb-1">
+        @if (count > 0)
+        {
+            <a class="cat-leaf" asp-controller="Job" asp-action="Index" asp-route-searchTerm="@Model.Name" asp-route-searchBy="Category">
+                <i class="bi bi-tag"></i> @Model.Name
+            </a>
+            <span class="badge rounded-pill ms-1" style="background:var(--brand-tint);color:var(--brand-strong);font-weight:600;">@count</span>
+        }
+        else
+        {
+            <span class="cat-leaf text-muted" style="opacity:.6;">
+                <i class="bi bi-tag"></i> @Model.Name <span class="small">(none yet)</span>
+            </span>
+        }
+    </li>
+}

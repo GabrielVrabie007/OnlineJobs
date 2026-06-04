@@ -62,6 +62,10 @@
                                 $@(((decimal?)ViewBag.SalaryRange).Value.ToString("N0"))
                                 <span class="text-muted" style="font-size: 0.875rem;">per year</span>
                             </h5>
+                            @if (ViewBag.SalaryBasis != null)
+                            {
+                                <small class="text-muted">Pay basis: @ViewBag.SalaryBasis</small>
+                            }
                         </div>
                     }
                     else if (!ViewBag.IsAuthenticated)
@@ -93,6 +97,17 @@
                     </div>
                     <div class="card-body">
                         <p style="white-space: pre-line;">@Model.Requirements</p>
+                        @{ var skills = ViewBag.Skills as IReadOnlyList<OnlineJobs.Domain.Flyweights.SkillFlyweight>; }
+                        @if (skills != null && skills.Count > 0)
+                        {
+                            <div class="mt-3">
+                                <small class="text-muted d-block mb-2">Skills (shared from a pool of @ViewBag.SkillPoolSize):</small>
+                                @foreach (var skill in skills)
+                                {
+                                    <span class="badge bg-light text-dark border me-1 mb-1"><i class="bi bi-tag"></i> @skill.Name</span>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             }

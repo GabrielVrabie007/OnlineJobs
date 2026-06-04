@@ -445,3 +445,13 @@ appsettings.*.local.json
 *.swp
 *.bak
 OnlineJobs/docs
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# Binary documents (Word, PowerPoint)
+*.docx
+*.pptx
+*.xlsx

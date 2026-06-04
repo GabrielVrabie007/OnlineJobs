@@ -40,6 +40,22 @@ namespace OnlineJobs.Application.Services
             return await _jobRepository.GetByIdAsync(jobId);
         }
 
+        public async Task<JobPosting> DuplicateJobAsync(Guid jobId, Guid employerId)
+        {
+            var original = await _jobRepository.GetByIdAsync(jobId);
+            if (original == null)
+                throw new InvalidOperationException("Job not found");
+            if (original.EmployerId != employerId)
+                throw new UnauthorizedAccessException("You can only duplicate your own job postings");
+
+            // Prototype pattern: Clone() produces a fresh Draft with a new id and no
+            // applications, so the employer can tweak and publish a near-identical posting.
+            var clone = original.Clone();
+            clone.Title = $"{original.Title} (Copy)";
+            await _jobRepository.AddAsync(clone);
+            return clone;
+        }
+
         public async Task<IEnumerable<JobPosting>> GetAllJobsAsync()
         {
             return await _jobRepository.GetAllAsync();

@@ -17,12 +17,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 
-// Configure SQLite Database with Foreign Keys enabled
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+// Needed so per-user pattern state (e.g. Command undo history) can resolve the
+// current user from the session inside the composition root.
+builder.Services.AddHttpContextAccessor();
 
+// Configure SQLite Database. Passing the connection string (not a single shared
+// SqliteConnection) lets EF manage a connection per DbContext, which is safe under
+// concurrent requests.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<OnlineJobsDbContext>(options =>
-    options.UseSqlite(connection));
+    options.UseSqlite(connectionString));
 
 builder.Services.AddSession(options =>
 {
@@ -47,6 +51,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<CategoryService>(); // Composite-pattern category tree
 builder.Services.AddScoped<IDocumentGenerationService, DocumentGenerationService>(); // Abstract Factory Pattern
 
 // Lab 3 - Builder Pattern
@@ -60,6 +65,10 @@ builder.Services.AddScoped<ICompanyRevealService, CompanyRevealService>();
 // Lab 4 - Façade Pattern services
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<JobApplicationFacade>();
+
+// In-app notification inbox shown in the navbar bell + Notifications page.
+// Fed by the Decorator (NotificationService) and the Observer (DashboardNotificationObserver).
+builder.Services.AddSingleton<OnlineJobs.Application.Notifications.NotificationStore>();
 
 // Lab 5 - Flyweight Pattern - Singleton factory for skill sharing
 builder.Services.AddSingleton<SkillFlyweightFactory>();
@@ -76,8 +85,20 @@ builder.Services.AddTransient<OnlineJobs.Application.Observers.DashboardNotifica
 builder.Services.AddTransient<OnlineJobs.Application.Observers.StatisticsObserver>();
 builder.Services.AddTransient<OnlineJobs.Application.Observers.AuditLogObserver>();
 
-// Lab 6 - Command Pattern
-builder.Services.AddScoped<OnlineJobs.Application.Commands.CommandHistory>();
+// Lab 6 - Command Pattern.
+// History is kept PER USER in a singleton store so Undo/Redo works across requests.
+// The scoped CommandHistory resolves to the current user's instance (read from the
+// session here in the composition root, keeping the Application layer ASP.NET-free).
+builder.Services.AddSingleton<OnlineJobs.Application.Commands.UserCommandHistoryStore>();
+builder.Services.AddScoped<OnlineJobs.Application.Commands.CommandHistory>(sp =>
+{
+    var store = sp.GetRequiredService<OnlineJobs.Application.Commands.UserCommandHistoryStore>();
+    var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+    var userIdString = httpContext?.Session.GetString("UserId");
+    return Guid.TryParse(userIdString, out var userId)
+        ? store.GetForUser(userId)
+        : new OnlineJobs.Application.Commands.CommandHistory();
+});
 builder.Services.AddScoped<OnlineJobs.Application.Commands.CommandInvoker>();
 
 // Lab 6 - Memento Pattern
@@ -85,14 +106,21 @@ builder.Services.AddSingleton<OnlineJobs.Application.Mementos.ProfileHistory>();
 builder.Services.AddSingleton<OnlineJobs.Application.Mementos.JobPostingDraftManager>();
 builder.Services.AddSingleton<OnlineJobs.Application.Mementos.ApplicationDraftManager>();
 
+// Additional patterns wired into the employer review flow:
+builder.Services.AddScoped<OnlineJobs.Application.ApprovalChains.ApprovalChainFactory>();   // Chain of Responsibility
+builder.Services.AddScoped<OnlineJobs.Application.Mediators.NotificationMediator>();          // Mediator
+
 // Lab 6 - Strategy Pattern (Additional Strategies)
 builder.Services.AddTransient<OnlineJobs.Application.Strategies.SalaryStrategies.ISalaryCalculationStrategy, OnlineJobs.Application.Strategies.SalaryStrategies.AnnualSalaryStrategy>();
+builder.Services.AddSingleton<OnlineJobs.Application.Strategies.SalaryStrategies.SalaryStrategyFactory>();
 builder.Services.AddTransient<OnlineJobs.Application.Strategies.ScoringStrategies.IApplicationScoringStrategy, OnlineJobs.Application.Strategies.ScoringStrategies.ComprehensiveScoringStrategy>();
 
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<JobService>();
-builder.Services.AddScoped<ApplicationService>();
-builder.Services.AddScoped<CompanyService>();
+// Some startup/seed code resolves the concrete services. Alias the concretes to the
+// SAME scoped instance the interfaces resolve, instead of registering a second copy.
+builder.Services.AddScoped<UserService>(sp => (UserService)sp.GetRequiredService<IUserService>());
+builder.Services.AddScoped<JobService>(sp => (JobService)sp.GetRequiredService<IJobService>());
+builder.Services.AddScoped<ApplicationService>(sp => (ApplicationService)sp.GetRequiredService<IApplicationService>());
+builder.Services.AddScoped<CompanyService>(sp => (CompanyService)sp.GetRequiredService<ICompanyService>());
 
 var app = builder.Build();
 
@@ -120,6 +148,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 await SeedDataAsync(app.Services);
+SeedNotifications(app.Services);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -139,6 +168,40 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+
+// Notifications live in an in-memory store, so we re-seed a realistic set for the two
+// demo accounts on each boot. Newest appears last in this list -> shows on top in the bell.
+void SeedNotifications(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var store = scope.ServiceProvider.GetRequiredService<OnlineJobs.Application.Notifications.NotificationStore>();
+    var db = scope.ServiceProvider.GetRequiredService<OnlineJobsDbContext>();
+
+    void For(string email, (string title, string msg, string icon)[] items)
+    {
+        var user = db.Users.FirstOrDefault(u => u.Email == email);
+        if (user == null) return;
+        foreach (var (title, msg, icon) in items)
+            store.Add(user.Id, title, msg, icon);
+    }
+
+    For("gabriel.vrabie@isa.utm.md", new[]
+    {
+        ("Welcome to OnlineJobs", "Complete your profile to improve your match score.", "bi-person-lines-fill"),
+        ("Application submitted", "Your application for 'Senior Backend Engineer' was received.", "bi-send-check"),
+        ("Application update", "Your application is now Under review.", "bi-arrow-repeat"),
+        ("Interview invitation", "You've been moved to Interviewing for 'Machine Learning Engineer'.", "bi-calendar-check"),
+        ("Great news!", "Your application was Accepted - the employer will be in touch.", "bi-check-circle"),
+    });
+
+    For("vrabiegabriel07@gmail.com", new[]
+    {
+        ("New application received", "Emily Chen applied for 'Senior Backend Engineer'.", "bi-person-plus"),
+        ("New application received", "Michael Rodriguez applied for 'Product Designer'.", "bi-person-plus"),
+        ("New application received", "Sarah Johnson applied for 'Machine Learning Engineer'.", "bi-person-plus"),
+        ("Weekly report ready", "Your applications report is ready to download.", "bi-bar-chart"),
+    });
+}
 
 async Task SeedDataAsync(IServiceProvider services)
 {

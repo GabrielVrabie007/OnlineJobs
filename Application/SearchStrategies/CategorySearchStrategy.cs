@@ -15,11 +15,10 @@ public class CategorySearchStrategy : IJobSearchStrategy
             return Task.FromResult(jobs);
         }
 
-        var normalizedSearch = searchTerm.Trim().ToLowerInvariant();
+        var normalizedSearch = SearchText.Normalize(searchTerm);
 
         var results = jobs.Where(job =>
-            !string.IsNullOrEmpty(job.Category) &&
-            job.Category.ToLowerInvariant().Contains(normalizedSearch)
+            SearchText.Contains(job.Category, normalizedSearch)
         );
 
         return Task.FromResult(results);

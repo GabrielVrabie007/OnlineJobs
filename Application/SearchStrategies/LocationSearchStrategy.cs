@@ -14,11 +14,10 @@ public class LocationSearchStrategy : IJobSearchStrategy
             return Task.FromResult(jobs);
         }
 
-        var normalizedSearch = searchTerm.Trim().ToLowerInvariant();
+        var normalizedSearch = SearchText.Normalize(searchTerm);
 
         var results = jobs.Where(job =>
-            !string.IsNullOrEmpty(job.Location) &&
-            job.Location.ToLowerInvariant().Contains(normalizedSearch)
+            SearchText.Contains(job.Location, normalizedSearch)
         );
 
         return Task.FromResult(results);

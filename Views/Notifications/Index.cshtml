@@ -1,0 +1,33 @@
+@model IReadOnlyList<OnlineJobs.Application.Notifications.UserNotification>
+@{
+    ViewData["Title"] = "Notifications";
+}
+
+<div class="container mt-4 mb-5" style="max-width: 760px;">
+    <h2 class="mb-4"><i class="bi bi-bell"></i> Notifications</h2>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> You have no notifications yet.
+        </div>
+    }
+    else
+    {
+        <div class="list-group shadow-sm">
+            @foreach (var n in Model)
+            {
+                <div class="list-group-item d-flex align-items-start gap-3 @(n.IsRead ? "" : "bg-light")">
+                    <i class="bi @n.Icon fs-4 text-primary"></i>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between">
+                            <strong>@n.Title</strong>
+                            <small class="text-muted">@n.CreatedAt.ToLocalTime().ToString("MMM dd, HH:mm")</small>
+                        </div>
+                        <div class="text-muted">@n.Message</div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

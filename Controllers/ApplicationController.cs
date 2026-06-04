@@ -2,10 +2,16 @@ using Microsoft.AspNetCore.Mvc;
 using OnlineJobs.Application.Interfaces;
 using OnlineJobs.Application.Commands;
 using OnlineJobs.Application.Commands.ApplicationCommands;
+using OnlineJobs.Application.Facades;
 using OnlineJobs.Application.Iterators;
 using OnlineJobs.Application.Mementos;
 using OnlineJobs.Application.Observers;
+using OnlineJobs.Application.Proxies;
 using OnlineJobs.Application.Strategies.ScoringStrategies;
+using OnlineJobs.Application.States.ApplicationStates;
+using OnlineJobs.Application.ApprovalChains;
+using OnlineJobs.Application.Visitors;
+using OnlineJobs.Application.Mediators;
 using OnlineJobs.Domain.Entities;
 using OnlineJobs.Domain.Enums;
 using OnlineJobs.Models;
@@ -22,6 +28,12 @@ namespace OnlineJobs.Controllers
         private readonly CommandInvoker _commandInvoker;
         private readonly ApplicationStatusSubject _applicationStatusSubject;
         private readonly ApplicationDraftManager _draftManager;
+        private readonly INotificationService _notificationService;
+        private readonly IApplicationScoringStrategy _scoringStrategy;
+        private readonly JobApplicationFacade _applicationFacade;
+        private readonly ApprovalChainFactory _approvalChainFactory;
+        private readonly NotificationMediator _notificationMediator;
+        private readonly IDocumentGenerationService _documentGenerationService;
 
         public ApplicationController(
             IApplicationService applicationService,
@@ -31,7 +43,13 @@ namespace OnlineJobs.Controllers
             IRepository<JobSeeker> jobSeekerRepository,
             CommandInvoker commandInvoker,
             ApplicationStatusSubject applicationStatusSubject,
-            ApplicationDraftManager draftManager)
+            ApplicationDraftManager draftManager,
+            INotificationService notificationService,
+            IApplicationScoringStrategy scoringStrategy,
+            JobApplicationFacade applicationFacade,
+            ApprovalChainFactory approvalChainFactory,
+            NotificationMediator notificationMediator,
+            IDocumentGenerationService documentGenerationService)
         {
             _applicationService = applicationService ?? throw new ArgumentNullException(nameof(applicationService));
             _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
@@ -41,6 +59,12 @@ namespace OnlineJobs.Controllers
             _commandInvoker = commandInvoker ?? throw new ArgumentNullException(nameof(commandInvoker));
             _applicationStatusSubject = applicationStatusSubject ?? throw new ArgumentNullException(nameof(applicationStatusSubject));
             _draftManager = draftManager ?? throw new ArgumentNullException(nameof(draftManager));
+            _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
+            _scoringStrategy = scoringStrategy ?? throw new ArgumentNullException(nameof(scoringStrategy));
+            _applicationFacade = applicationFacade ?? throw new ArgumentNullException(nameof(applicationFacade));
+            _approvalChainFactory = approvalChainFactory ?? throw new ArgumentNullException(nameof(approvalChainFactory));
+            _notificationMediator = notificationMediator ?? throw new ArgumentNullException(nameof(notificationMediator));
+            _documentGenerationService = documentGenerationService ?? throw new ArgumentNullException(nameof(documentGenerationService));
         }
 
         [HttpGet]
@@ -96,23 +120,23 @@ namespace OnlineJobs.Controllers
                 if (!userId.HasValue)
                     return RedirectToAction("Login", "Account");
 
-                var emailObserver = new EmailAlertObserver();
-                var dashboardObserver = new DashboardNotificationObserver();
-                var auditObserver = new AuditLogObserver();
+                // Façade: one call runs the whole workflow — profile/eligibility checks,
+                // the Singleton-configured application limit, duplicate guard, the submit,
+                // and the Decorator-based confirmation + employer notification.
+                var result = await _applicationFacade.SubmitJobApplicationAsync(
+                    userId.Value, model.JobId, model.CoverLetter);
 
-                _applicationStatusSubject.Attach(emailObserver);
-                _applicationStatusSubject.Attach(dashboardObserver);
-                _applicationStatusSubject.Attach(auditObserver);
+                if (!result.Success)
+                {
+                    ModelState.AddModelError(string.Empty, result.Message);
+                    foreach (var validationError in result.ValidationErrors)
+                        ModelState.AddModelError(string.Empty, validationError);
 
-                var submitCommand = new SubmitApplicationCommand(
-                    _applicationRepository,
-                    model.JobId,
-                    userId.Value,
-                    model.CoverLetter
-                );
+                    ViewBag.Job = await _jobService.GetJobByIdAsync(model.JobId);
+                    return View(model);
+                }
 
-                await _commandInvoker.ExecuteAsync(submitCommand);
-
+                // The auto-saved draft is no longer needed once the form is submitted.
                 _draftManager.DeleteDraft(userId.Value, model.JobId);
 
                 TempData["SuccessMessage"] = "Application submitted successfully!";
@@ -172,17 +196,16 @@ namespace OnlineJobs.Controllers
 
             IIterator<JobApplication> iterator;
 
+            // Iterator pattern: the chosen traversal does the filtering/ordering — the
+            // view just renders what the iterator yields (no client-side re-filtering).
             if (!string.IsNullOrEmpty(filter) && Enum.TryParse<ApplicationStatus>(filter, out var status))
             {
                 iterator = applicationCollection.CreateFilteredIterator(status);
             }
-            else if (sort == "date")
-            {
-                iterator = applicationCollection.CreateDateOrderedIterator(ascending: false);
-            }
             else
             {
-                iterator = applicationCollection.CreateIterator();
+                // Default and the explicit "date" sort both show newest first.
+                iterator = applicationCollection.CreateDateOrderedIterator(ascending: false);
             }
 
             var viewModels = new List<ApplicationDetailsViewModel>();
@@ -197,6 +220,7 @@ namespace OnlineJobs.Controllers
 
             ViewBag.Filter = filter;
             ViewBag.Sort = sort;
+            SetUndoRedoViewBag();
 
             return View(viewModels);
         }
@@ -217,7 +241,11 @@ namespace OnlineJobs.Controllers
 
             if (jobId.HasValue)
             {
-                applications = await _applicationService.GetApplicationsByJobPostingAsync(jobId.Value);
+                // Virtual Proxy: lazily load this posting's applications and cache them,
+                // so the list (and any later count/lookup) come from a single fetch.
+                var listAccess = new ApplicationListVirtualProxy(
+                    new RealApplicationListAccess(_applicationService, jobId.Value));
+                applications = await listAccess.GetApplicationsAsync();
             }
             else
             {
@@ -225,7 +253,6 @@ namespace OnlineJobs.Controllers
             }
 
             var enrichedApplications = new List<(JobApplication Application, JobPosting? Job, Domain.Entities.JobSeeker JobSeeker, int Score)>();
-            var scoringStrategy = new ComprehensiveScoringStrategy();
 
             foreach (var app in applications)
             {
@@ -234,14 +261,79 @@ namespace OnlineJobs.Controllers
 
                 if (jobSeeker != null && job != null)
                 {
-                    var score = scoringStrategy.CalculateScore(jobSeeker, job);
+                    // Strategy pattern: the scoring algorithm is injected, so it can be
+                    // swapped (skills-only, experience-only, comprehensive…) without
+                    // touching this controller.
+                    var score = _scoringStrategy.CalculateScore(jobSeeker, job);
                     enrichedApplications.Add((app, job, jobSeeker, score));
                 }
             }
 
             enrichedApplications = enrichedApplications.OrderByDescending(x => x.Score).ToList();
 
+            // Visitor pattern: roll up hiring analytics across these applications.
+            var analyticsVisitor = new AnalyticsVisitor();
+            var analytics = new AnalyticsResult();
+            foreach (var item in enrichedApplications)
+            {
+                var partial = analyticsVisitor.VisitJobApplication(item.Application);
+                analytics.TotalApplications += partial.TotalApplications;
+                analytics.InterviewsScheduled += partial.InterviewsScheduled;
+                analytics.Hires += partial.Hires;
+            }
+            analytics.ConversionRate = analytics.TotalApplications > 0
+                ? (double)analytics.Hires / analytics.TotalApplications * 100 : 0;
+            ViewBag.Analytics = analytics;
+
+            // Chain of Responsibility: pass each application through the approval pipeline
+            // (automated screening → HR → manager → director) for a recommendation.
+            var approvalChain = _approvalChainFactory.CreateStandardChain();
+            var recommendations = new Dictionary<Guid, string>();
+            foreach (var item in enrichedApplications)
+            {
+                var request = new ApprovalRequest(
+                    item.Application.Id,
+                    item.Application.JobPostingId,
+                    employerId.Value,
+                    ApplicationStatus.Accepted,
+                    UserType.Employer)
+                {
+                    JobSalary = item.Job?.SalaryMax ?? item.Job?.SalaryMin
+                };
+                var result = await approvalChain.HandleAsync(request);
+                recommendations[item.Application.Id] = result.IsApproved
+                    ? $"Cleared by {result.ApprovedBy}"
+                    : result.RequiresEscalation
+                        ? $"Needs {result.NextApproverLevel}"
+                        : result.Reason;
+            }
+            ViewBag.Recommendations = recommendations;
+
+            SetUndoRedoViewBag();
+
             return View(enrichedApplications);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportApplicationsReport(Guid jobId)
+        {
+            if (!IsEmployer())
+                return Unauthorized();
+            var employerId = GetCurrentUserId();
+            if (!employerId.HasValue)
+                return RedirectToAction("Login", "Account");
+
+            var job = await _jobService.GetJobByIdAsync(jobId);
+            if (job == null)
+                return NotFound();
+
+            var applications = await _applicationService.GetApplicationsByJobPostingAsync(jobId);
+
+            // Abstract Factory: the employer document factory builds an application report.
+            var report = _documentGenerationService.GenerateApplicationReport(job, applications);
+            var bytes = System.Text.Encoding.UTF8.GetBytes(report);
+            var safeTitle = string.Concat(job.Title.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+            return File(bytes, "text/plain", $"applications-{safeTitle}.txt");
         }
 
         public async Task<IActionResult> Details(Guid id)
@@ -266,7 +358,7 @@ namespace OnlineJobs.Controllers
             if (!isAuthorized)
                 return Forbid();
 
-            var jobSeeker = await GetJobSeekerByIdAsync(application.JobSeekerId);
+            var jobSeeker = await _jobSeekerRepository.GetByIdAsync(application.JobSeekerId);
             var company = await _companyService.GetCompanyByIdAsync(job.CompanyId);
 
             ViewBag.Job = job;
@@ -296,19 +388,14 @@ namespace OnlineJobs.Controllers
                 if (application.JobSeekerId != userId.Value)
                     return Forbid();
 
-                var emailObserver = new EmailAlertObserver();
-                var auditObserver = new AuditLogObserver();
-
-                _applicationStatusSubject.Attach(emailObserver);
-                _applicationStatusSubject.Attach(auditObserver);
-
                 var withdrawCommand = new WithdrawApplicationCommand(_applicationRepository, id);
                 await _commandInvoker.ExecuteAsync(withdrawCommand);
 
                 var updatedApplication = await _applicationService.GetApplicationByIdAsync(id);
                 if (updatedApplication != null)
                 {
-                    await _applicationStatusSubject.NotifyAsync(updatedApplication);
+                    // Mediator coordinates the notification fan-out to the Observer subject.
+                    await _notificationMediator.NotifyApplicationStatusChangeAsync(updatedApplication);
                 }
 
                 TempData["SuccessMessage"] = "Application withdrawn successfully. You can undo this action if needed.";
@@ -330,13 +417,26 @@ namespace OnlineJobs.Controllers
 
             try
             {
-                var emailObserver = new EmailAlertObserver();
-                var dashboardObserver = new DashboardNotificationObserver();
-                var auditObserver = new AuditLogObserver();
+                // State pattern: confirm the requested move is legal from the application's
+                // current state (e.g. you can't accept something that wasn't interviewed).
+                var current = await _applicationService.GetApplicationByIdAsync(id);
+                if (current == null)
+                    return NotFound();
 
-                _applicationStatusSubject.Attach(emailObserver);
-                _applicationStatusSubject.Attach(dashboardObserver);
-                _applicationStatusSubject.Attach(auditObserver);
+                var targetState = status?.ToLower() switch
+                {
+                    "review" => "UnderReview",
+                    "interview" => "Interviewing",
+                    "accept" => "Accepted",
+                    "reject" => "Rejected",
+                    _ => null
+                };
+                var state = ApplicationStateContext.GetStateFromStatus(current.Status);
+                if (targetState != null && !state.CanTransitionTo(targetState))
+                {
+                    TempData["ErrorMessage"] = $"Cannot move an application from {state.StateName} to {targetState}.";
+                    return RedirectToAction("ReceivedApplications");
+                }
 
                 ICommand command = status?.ToLower() switch
                 {
@@ -368,7 +468,8 @@ namespace OnlineJobs.Controllers
                 var updatedApplication = await _applicationService.GetApplicationByIdAsync(id);
                 if (updatedApplication != null)
                 {
-                    await _applicationStatusSubject.NotifyAsync(updatedApplication);
+                    // Mediator coordinates the notification fan-out to the Observer subject.
+                    await _notificationMediator.NotifyApplicationStatusChangeAsync(updatedApplication);
                 }
 
                 TempData["SuccessMessage"] = "Application status updated successfully.";
@@ -382,18 +483,49 @@ namespace OnlineJobs.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UndoLastAction()
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UndoLastAction(string? returnAction = null)
         {
+            if (!IsUserLoggedIn())
+                return RedirectToAction("Login", "Account");
+
             var result = await _commandInvoker.UndoAsync();
-            if (result)
-            {
-                TempData["SuccessMessage"] = "Last action undone successfully.";
-            }
-            else
-            {
-                TempData["ErrorMessage"] = "No action to undo.";
-            }
-            return RedirectToAction("ReceivedApplications");
+            TempData[result ? "SuccessMessage" : "ErrorMessage"] =
+                result ? "Last action was undone." : "There is nothing to undo.";
+
+            return RedirectToUndoTarget(returnAction);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RedoLastAction(string? returnAction = null)
+        {
+            if (!IsUserLoggedIn())
+                return RedirectToAction("Login", "Account");
+
+            var result = await _commandInvoker.RedoAsync();
+            TempData[result ? "SuccessMessage" : "ErrorMessage"] =
+                result ? "Action was redone." : "There is nothing to redo.";
+
+            return RedirectToUndoTarget(returnAction);
+        }
+
+        // Sends the user back to whichever list they acted on (employers manage
+        // received applications, job seekers manage their own), falling back to role.
+        private IActionResult RedirectToUndoTarget(string? returnAction)
+        {
+            if (returnAction == "MyApplications" || returnAction == "ReceivedApplications")
+                return RedirectToAction(returnAction);
+            return RedirectToAction(IsEmployer() ? "ReceivedApplications" : "MyApplications");
+        }
+
+        // Surfaces the Command pattern's undo/redo availability + the last action's
+        // label to the list views so the Undo/Redo buttons can show real state.
+        private void SetUndoRedoViewBag()
+        {
+            ViewBag.CanUndo = _commandInvoker.CanUndo();
+            ViewBag.CanRedo = _commandInvoker.CanRedo();
+            ViewBag.LastActionLabel = _commandInvoker.GetCommandHistory().FirstOrDefault();
         }
 
         private bool IsUserLoggedIn()
@@ -419,11 +551,6 @@ namespace OnlineJobs.Controllers
         {
             var userType = HttpContext.Session.GetString("UserType");
             return userType == UserType.JobSeeker.ToString();
-        }
-
-        private Task<Domain.Entities.JobSeeker> GetJobSeekerByIdAsync(Guid id)
-        {
-            return Task.FromResult(new Domain.Entities.JobSeeker(id));
         }
     }
 }

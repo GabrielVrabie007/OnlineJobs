@@ -5,6 +5,24 @@ namespace OnlineJobs.Application.Observers
         private readonly List<IObserver> _observers = new();
         private readonly object _lock = new();
 
+        // Parameterless ctor kept for unit tests that attach their own observers.
+        public ApplicationStatusSubject() { }
+
+        // DI ctor: the standard observers are attached ONCE for the lifetime of this
+        // singleton subject. (Previously controllers attached fresh observers on every
+        // request to a singleton subject, which leaked and multiplied notifications.)
+        public ApplicationStatusSubject(
+            EmailAlertObserver emailObserver,
+            DashboardNotificationObserver dashboardObserver,
+            AuditLogObserver auditObserver,
+            StatisticsObserver statisticsObserver)
+        {
+            Attach(emailObserver);
+            Attach(dashboardObserver);
+            Attach(auditObserver);
+            Attach(statisticsObserver);
+        }
+
         public void Attach(IObserver observer)
         {
             lock (_lock)

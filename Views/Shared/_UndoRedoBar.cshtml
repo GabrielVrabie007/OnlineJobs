@@ -1,0 +1,35 @@
+@*
+    Surfaces the Command pattern's Undo/Redo to the user. The buttons are only
+    meaningful because command history is kept per-user across requests
+    (UserCommandHistoryStore), so an employer can really undo an approval, or a
+    job seeker can undo a withdrawal, after the page has reloaded.
+*@
+@{
+    var canUndo = ViewBag.CanUndo as bool? ?? false;
+    var canRedo = ViewBag.CanRedo as bool? ?? false;
+    var lastLabel = ViewBag.LastActionLabel as string;
+    var returnAction = ViewData["ReturnAction"] as string ?? "";
+}
+@if (canUndo || canRedo)
+{
+    <div class="d-flex align-items-center gap-2 mb-3 p-2 px-3 rounded border bg-light">
+        <i class="bi bi-clock-history text-muted"></i>
+        <span class="text-muted small me-auto">
+            @(canUndo && !string.IsNullOrEmpty(lastLabel) ? $"Last action: {lastLabel}" : "Action history")
+        </span>
+        <form asp-controller="Application" asp-action="UndoLastAction" method="post" class="d-inline m-0">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnAction" value="@returnAction" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary" @(canUndo ? "" : "disabled")>
+                <i class="bi bi-arrow-counterclockwise"></i> Undo
+            </button>
+        </form>
+        <form asp-controller="Application" asp-action="RedoLastAction" method="post" class="d-inline m-0">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnAction" value="@returnAction" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary" @(canRedo ? "" : "disabled")>
+                <i class="bi bi-arrow-clockwise"></i> Redo
+            </button>
+        </form>
+    </div>
+}

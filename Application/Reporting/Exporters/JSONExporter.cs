@@ -3,49 +3,33 @@ using System.Text.Json;
 
 namespace OnlineJobs.Application.Reporting.Exporters
 {
-
+    /// <summary>Bridge Implementor — valid, machine-readable JSON.</summary>
     public class JSONExporter : IReportExporter
     {
         public string Format => "JSON";
         public string FileExtension => ".json";
+        public string ContentType => "application/json";
 
-        public async Task<string> ExportAsync(string reportTitle, Dictionary<string, object> data)
+        public byte[] Export(ReportDocument document)
         {
-            return await Task.Run(() =>
+            var payload = new
             {
-                var sb = new StringBuilder();
+                title = document.Title,
+                generatedAt = document.GeneratedAt,
+                summary = document.Summary.ToDictionary(k => k.Key, v => v.Value),
+                columns = document.Columns,
+                rows = document.Rows.Select(row =>
+                    document.Columns
+                        .Select((col, i) => new { col, val = i < row.Length ? row[i] : string.Empty })
+                        .ToDictionary(x => x.col, x => x.val))
+            };
 
-                sb.AppendLine(GenerateHeader(reportTitle));
-
-                var reportData = new
-                {
-                    Title = reportTitle,
-                    GeneratedAt = DateTime.UtcNow,
-                    Format = "JSON",
-                    Data = data
-                };
-
-                var json = JsonSerializer.Serialize(reportData, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-                sb.AppendLine(json);
-                sb.AppendLine(GenerateFooter());
-
-                return sb.ToString();
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             });
-        }
-
-        public string GenerateHeader(string title)
-        {
-            return $"// JSON REPORT: {title}\n" +
-                   $"// Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-        }
-
-        public string GenerateFooter()
-        {
-            return $"\n// End of JSON report";
+            return Encoding.UTF8.GetBytes(json);
         }
     }
 }

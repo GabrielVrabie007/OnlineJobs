@@ -16,6 +16,8 @@
         </div>
     </div>
 
+    @await Html.PartialAsync("_UndoRedoBar", new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["ReturnAction"] = "MyApplications" })
+
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -56,65 +58,29 @@
         </div>
     </div>
 
-    <!-- Filter Tabs -->
-    <ul class="nav nav-tabs mb-4" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#all" type="button">
-                All Applications (@Model.Count())
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pending" type="button">
-                Pending (@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview))
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#interviewing" type="button">
-                Interviewing (@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing))
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#completed" type="button">
-                Completed (@Model.Count(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Accepted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Rejected))
-            </button>
-        </li>
-    </ul>
+    <!-- Filter buttons — each one re-runs the server-side Iterator with a status filter -->
+    @{
+        var activeFilter = ViewBag.Filter as string;
+        var statuses = new[] { "Submitted", "UnderReview", "Interviewing", "Accepted", "Rejected", "Withdrawn" };
+    }
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a class="btn btn-sm @(string.IsNullOrEmpty(activeFilter) ? "btn-primary" : "btn-outline-primary")"
+           asp-action="MyApplications">All</a>
+        @foreach (var st in statuses)
+        {
+            <a class="btn btn-sm @(activeFilter == st ? "btn-primary" : "btn-outline-primary")"
+               asp-action="MyApplications" asp-route-filter="@st">@st</a>
+        }
+    </div>
 
     @if (Model != null && Model.Any())
     {
-        <!-- Applications List -->
-        <div class="tab-content">
-            <!-- All Tab -->
-            <div class="tab-pane fade show active" id="all">
-                @foreach (var application in Model.OrderByDescending(a => a.AppliedAt))
-                {
-                    @await Html.PartialAsync("_ApplicationCard", application)
-                }
-            </div>
-
-            <!-- Pending Tab -->
-            <div class="tab-pane fade" id="pending">
-                @foreach (var application in Model.Where(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview).OrderByDescending(a => a.AppliedAt))
-                {
-                    @await Html.PartialAsync("_ApplicationCard", application)
-                }
-            </div>
-
-            <!-- Interviewing Tab -->
-            <div class="tab-pane fade" id="interviewing">
-                @foreach (var application in Model.Where(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing).OrderByDescending(a => a.AppliedAt))
-                {
-                    @await Html.PartialAsync("_ApplicationCard", application)
-                }
-            </div>
-
-            <!-- Completed Tab -->
-            <div class="tab-pane fade" id="completed">
-                @foreach (var application in Model.Where(a => a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Accepted || a.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Rejected).OrderByDescending(a => a.AppliedAt))
-                {
-                    @await Html.PartialAsync("_ApplicationCard", application)
-                }
-            </div>
+        <!-- Applications List (already filtered + ordered by the server-side Iterator) -->
+        <div>
+            @foreach (var application in Model)
+            {
+                @await Html.PartialAsync("_ApplicationCard", application)
+            }
         </div>
     }
     else

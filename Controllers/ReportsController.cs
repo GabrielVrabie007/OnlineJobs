@@ -25,33 +25,23 @@ namespace OnlineJobs.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Generate(string reportType, string format)
+        public async Task<IActionResult> Generate(string reportType)
         {
             if (!IsEmployer())
-            {
                 return Unauthorized();
-            }
 
             try
             {
-                string reportContent = reportType switch
-                {
-                    "jobs" => await _reportingService.GenerateJobReportAsync(format),
-                    "applications" => await _reportingService.GenerateApplicationReportAsync(format, GetCurrentUserId()),
-                    "companies" => await _reportingService.GenerateCompanyReportAsync(format),
-                    _ => throw new ArgumentException("Invalid report type")
-                };
-
-                ViewBag.ReportContent = reportContent;
+                // Build the data once and preview it on screen; downloads render the
+                // same data into a real file (Bridge pattern).
+                var document = await _reportingService.BuildAsync(reportType, GetCurrentUserId());
+                ViewBag.Document = document;
                 ViewBag.ReportType = reportType;
-                ViewBag.Format = format;
-                ViewBag.GeneratedAt = DateTime.Now;
-
                 return View("Index");
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error generating report: {ex.Message}";
+                TempData["ErrorMessage"] = $"Could not generate report: {ex.Message}";
                 return RedirectToAction("Index");
             }
         }
@@ -60,36 +50,16 @@ namespace OnlineJobs.Controllers
         public async Task<IActionResult> Download(string reportType, string format)
         {
             if (!IsEmployer())
-            {
                 return Unauthorized();
-            }
 
             try
             {
-                string reportContent = reportType switch
-                {
-                    "jobs" => await _reportingService.GenerateJobReportAsync(format),
-                    "applications" => await _reportingService.GenerateApplicationReportAsync(format, GetCurrentUserId()),
-                    "companies" => await _reportingService.GenerateCompanyReportAsync(format),
-                    _ => throw new ArgumentException("Invalid report type")
-                };
-
-                var contentType = format.ToUpperInvariant() switch
-                {
-                    "PDF" => "application/pdf",
-                    "EXCEL" or "XLSX" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    "JSON" => "application/json",
-                    "CSV" => "text/csv",
-                    _ => "text/plain"
-                };
-
-                var fileName = $"{reportType}_report_{DateTime.Now:yyyyMMdd_HHmmss}.{format.ToLower()}";
-
-                return File(System.Text.Encoding.UTF8.GetBytes(reportContent), contentType, fileName);
+                var file = await _reportingService.ExportAsync(reportType, format, GetCurrentUserId());
+                return File(file.Content, file.ContentType, file.FileName);
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error downloading report: {ex.Message}";
+                TempData["ErrorMessage"] = $"Could not download report: {ex.Message}";
                 return RedirectToAction("Index");
             }
         }

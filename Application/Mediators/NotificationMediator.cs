@@ -15,29 +15,15 @@ namespace OnlineJobs.Application.Mediators
             _jobPostingSubject = jobPostingSubject;
         }
 
+        // Observers are attached once to the singleton subjects via DI, so the mediator
+        // simply triggers a notification rather than re-attaching observers each call.
         public async Task NotifyApplicationStatusChangeAsync(object application)
         {
-            var emailObserver = new EmailAlertObserver();
-            var dashboardObserver = new DashboardNotificationObserver();
-            var auditObserver = new AuditLogObserver();
-
-            _statusSubject.Attach(emailObserver);
-            _statusSubject.Attach(dashboardObserver);
-            _statusSubject.Attach(auditObserver);
-
             await _statusSubject.NotifyAsync(application);
         }
 
         public async Task NotifyJobPostingAsync(object jobPosting)
         {
-            var emailObserver = new EmailAlertObserver();
-            var dashboardObserver = new DashboardNotificationObserver();
-            var statisticsObserver = new StatisticsObserver();
-
-            _jobPostingSubject.Attach(emailObserver);
-            _jobPostingSubject.Attach(dashboardObserver);
-            _jobPostingSubject.Attach(statisticsObserver);
-
             await _jobPostingSubject.NotifyAsync(jobPosting);
         }
     }

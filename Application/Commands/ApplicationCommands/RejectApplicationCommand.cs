@@ -37,8 +37,7 @@ namespace OnlineJobs.Application.Commands.ApplicationCommands
             var application = await _applicationRepository.GetByIdAsync(_applicationId);
             if (application != null)
             {
-                typeof(JobApplication).GetProperty(nameof(JobApplication.Status))!
-                    .SetValue(application, _previousStatus);
+                application.RestoreStatus(_previousStatus);
                 await _applicationRepository.UpdateAsync(application);
             }
         }

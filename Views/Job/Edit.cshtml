@@ -1,0 +1,131 @@
+@model OnlineJobs.Models.EditJobViewModel
+@{
+    ViewData["Title"] = "Edit Job";
+}
+
+<div class="container mt-4 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card slide-up">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0"><i class="bi bi-pencil-square"></i> Edit Job Posting</h3>
+                    @if (!string.IsNullOrEmpty(Model.Status))
+                    {
+                        <span class="badge job-status-@Model.Status.ToLower()">@Model.Status</span>
+                    }
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Edit" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="CompanyId" />
+                        <input type="hidden" asp-for="Status" />
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-4">
+                            <label asp-for="Title" class="form-label"><i class="bi bi-briefcase"></i> Job Title *</label>
+                            <input asp-for="Title" class="form-control form-control-lg" />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Description" class="form-label"><i class="bi bi-file-text"></i> Job Description *</label>
+                            <textarea asp-for="Description" class="form-control" rows="6"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Requirements" class="form-label"><i class="bi bi-check2-square"></i> Requirements</label>
+                            <textarea asp-for="Requirements" class="form-control" rows="5"></textarea>
+                            <span asp-validation-for="Requirements" class="text-danger"></span>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="Category" class="form-label"><i class="bi bi-tag"></i> Job Category *</label>
+                                <input asp-for="Category" class="form-control" list="categoryOptions" />
+                                <datalist id="categoryOptions">
+                                    <option value="Software Development"></option>
+                                    <option value="Backend Development"></option>
+                                    <option value="Frontend Development"></option>
+                                    <option value="Full Stack Development"></option>
+                                    <option value="Mobile Development"></option>
+                                    <option value="Data Science"></option>
+                                    <option value="Machine Learning"></option>
+                                    <option value="DevOps"></option>
+                                    <option value="Cloud Architecture"></option>
+                                    <option value="Cybersecurity"></option>
+                                    <option value="Product Design"></option>
+                                    <option value="UX Design"></option>
+                                    <option value="Product Management"></option>
+                                    <option value="Marketing"></option>
+                                    <option value="Sales"></option>
+                                    <option value="Finance"></option>
+                                </datalist>
+                                <span asp-validation-for="Category" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ExperienceLevel" class="form-label"><i class="bi bi-graph-up"></i> Experience Level</label>
+                                <input asp-for="ExperienceLevel" class="form-control" list="levelOptions" />
+                                <datalist id="levelOptions">
+                                    <option value="Junior"></option>
+                                    <option value="Mid"></option>
+                                    <option value="Senior"></option>
+                                    <option value="Lead"></option>
+                                    <option value="Executive"></option>
+                                </datalist>
+                                <span asp-validation-for="ExperienceLevel" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="Location" class="form-label"><i class="bi bi-geo-alt"></i> Location *</label>
+                                <input asp-for="Location" class="form-control" />
+                                <span asp-validation-for="Location" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="EmploymentType" class="form-label"><i class="bi bi-clock"></i> Employment Type *</label>
+                                <input asp-for="EmploymentType" class="form-control" list="employmentOptions" />
+                                <datalist id="employmentOptions">
+                                    <option value="Full-time"></option>
+                                    <option value="Part-time"></option>
+                                    <option value="Contract"></option>
+                                    <option value="Freelance"></option>
+                                    <option value="Internship"></option>
+                                </datalist>
+                                <span asp-validation-for="EmploymentType" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="SalaryMin" class="form-label"><i class="bi bi-currency-dollar"></i> Minimum Salary</label>
+                                <input asp-for="SalaryMin" type="number" class="form-control" />
+                                <span asp-validation-for="SalaryMin" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="SalaryMax" class="form-label"><i class="bi bi-currency-dollar"></i> Maximum Salary</label>
+                                <input asp-for="SalaryMax" type="number" class="form-control" />
+                                <span asp-validation-for="SalaryMax" class="text-danger"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input asp-for="IsCompanyRevealed" class="form-check-input" />
+                            <label asp-for="IsCompanyRevealed" class="form-check-label">Show company name publicly</label>
+                        </div>
+
+                        <div class="d-flex gap-3 justify-content-end">
+                            <a asp-action="MyJobs" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Cancel</a>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Save changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

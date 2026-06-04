@@ -15,11 +15,11 @@ public class TitleSearchStrategy : IJobSearchStrategy
             return Task.FromResult(jobs);
         }
 
-        var normalizedSearch = searchTerm.Trim().ToLowerInvariant();
+        var normalizedSearch = SearchText.Normalize(searchTerm);
 
         var results = jobs.Where(job =>
-            job.Title.ToLowerInvariant().Contains(normalizedSearch) ||
-            job.Description.ToLowerInvariant().Contains(normalizedSearch)
+            SearchText.Contains(job.Title, normalizedSearch) ||
+            SearchText.Contains(job.Description, normalizedSearch)
         );
 
         return Task.FromResult(results);

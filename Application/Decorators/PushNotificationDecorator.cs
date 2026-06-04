@@ -17,6 +17,8 @@ namespace OnlineJobs.Application.Decorators
 
         private async Task SendPushNotification(string recipient, string subject, string message)
         {
+            // Simulated external channel — swap for FCM/APNs in production.
+            Console.WriteLine($"[Notify/Push] -> {recipient} | {subject}");
             await Task.CompletedTask;
         }
 

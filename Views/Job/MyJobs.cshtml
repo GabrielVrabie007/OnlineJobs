@@ -127,6 +127,15 @@
                                         <a asp-action="Edit" asp-route-id="@job.Id" class="btn btn-outline-secondary btn-sm" title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </a>
+                                        <form asp-action="Duplicate" asp-route-id="@job.Id" method="post" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-info btn-sm" title="Duplicate as draft">
+                                                <i class="bi bi-files"></i>
+                                            </button>
+                                        </form>
+                                        <a asp-controller="Application" asp-action="ExportApplicationsReport" asp-route-jobId="@job.Id"
+                                           class="btn btn-outline-success btn-sm" title="Export applications report">
+                                            <i class="bi bi-download"></i>
+                                        </a>
                                         @if (job.Status.ToString() == "Active")
                                         {
                                             <form asp-action="Close" asp-route-id="@job.Id" method="post" class="d-inline">

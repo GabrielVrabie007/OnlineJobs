@@ -30,14 +30,6 @@ namespace OnlineJobs.Application.Mediators
         {
             try
             {
-                var emailObserver = new EmailAlertObserver();
-                var dashboardObserver = new DashboardNotificationObserver();
-                var auditObserver = new AuditLogObserver();
-
-                _applicationStatusSubject.Attach(emailObserver);
-                _applicationStatusSubject.Attach(dashboardObserver);
-                _applicationStatusSubject.Attach(auditObserver);
-
                 var submitCommand = new SubmitApplicationCommand(
                     _applicationRepository,
                     request.JobId,

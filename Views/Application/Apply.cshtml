@@ -48,6 +48,7 @@
                             <textarea asp-for="CoverLetter" class="form-control" rows="8" placeholder="Tell us why you're a great fit for this position. Highlight your relevant experience and what excites you about this opportunity..."></textarea>
                             <span asp-validation-for="CoverLetter" class="text-danger"></span>
                             <small class="text-muted">Minimum 100 characters</small>
+                            <small id="draftStatus" class="text-success ms-2"></small>
                         </div>
 
                         <!-- Resume Upload -->
@@ -144,4 +145,57 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script>
+        // Memento pattern (client side): auto-save the cover letter as a draft so the
+        // applicant never loses what they typed if the page closes. The server keeps
+        // the snapshot (ApplicationFormMemento) and restores it when the form reopens.
+        (function () {
+            const jobId = '@Model.JobId';
+            const textarea = document.getElementById('CoverLetter');
+            const status = document.getElementById('draftStatus');
+            if (!textarea) return;
+
+            let timer = null;
+            let submitting = false;
+
+            function setStatus(text) { if (status) status.textContent = text; }
+
+            // Restore an existing draft on open (only if the field is empty).
+            fetch('/Application/LoadDraft?jobId=' + encodeURIComponent(jobId))
+                .then(r => r.json())
+                .then(d => {
+                    if (d && d.success && d.coverLetter && !textarea.value.trim()) {
+                        textarea.value = d.coverLetter;
+                        setStatus('Draft restored');
+                    }
+                })
+                .catch(() => { });
+
+            function saveDraft() {
+                const coverLetter = textarea.value;
+                if (!coverLetter.trim()) return;
+                setStatus('Saving…');
+                fetch('/Application/SaveDraft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ jobId: jobId, coverLetter: coverLetter })
+                })
+                    .then(r => r.json())
+                    .then(d => setStatus(d && d.success ? 'Draft saved' : ''))
+                    .catch(() => setStatus(''));
+            }
+
+            // Debounce: save ~1.2s after typing stops.
+            textarea.addEventListener('input', function () {
+                setStatus('');
+                clearTimeout(timer);
+                timer = setTimeout(saveDraft, 1200);
+            });
+
+            // Don't keep a draft once the form is actually submitted.
+            const form = textarea.closest('form');
+            if (form) form.addEventListener('submit', function () { submitting = true; clearTimeout(timer); });
+        })();
+    </script>
 }

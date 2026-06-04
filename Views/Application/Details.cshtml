@@ -1,0 +1,133 @@
+@model OnlineJobs.Domain.Entities.JobApplication
+@{
+    ViewData["Title"] = "Application";
+    var job = ViewBag.Job as OnlineJobs.Domain.Entities.JobPosting;
+    var seeker = ViewBag.JobSeeker as OnlineJobs.Domain.Entities.JobSeeker;
+    var company = ViewBag.Company as OnlineJobs.Domain.Entities.Company;
+    var isEmployer = Context.Session.GetString("UserType") == "Employer";
+    var statusClass = Model.Status switch
+    {
+        OnlineJobs.Domain.Enums.ApplicationStatus.Submitted => "bg-info text-dark",
+        OnlineJobs.Domain.Enums.ApplicationStatus.UnderReview => "bg-warning text-dark",
+        OnlineJobs.Domain.Enums.ApplicationStatus.Interviewing => "bg-primary",
+        OnlineJobs.Domain.Enums.ApplicationStatus.Accepted => "bg-success",
+        OnlineJobs.Domain.Enums.ApplicationStatus.Rejected => "bg-danger",
+        _ => "bg-secondary"
+    };
+    var fullName = seeker != null ? $"{seeker.FirstName} {seeker.LastName}".Trim() : "Candidate";
+    if (string.IsNullOrWhiteSpace(fullName)) { fullName = "Candidate"; }
+}
+
+<div class="container py-4" style="max-width: 960px;">
+    <a asp-action="@(isEmployer ? "ReceivedApplications" : "MyApplications")" class="text-muted small d-inline-block mb-3">
+        <i class="bi bi-arrow-left"></i> Back to applications
+    </a>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">@job?.Title</h1>
+            <p class="text-muted mb-0"><i class="bi bi-building"></i> @(company?.Name ?? "—")</p>
+        </div>
+        <span class="badge @statusClass" style="font-size:.85rem;">@Model.Status</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            @if (isEmployer)
+            {
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h2 class="h6 text-uppercase text-muted mb-3" style="letter-spacing:.06em;">Candidate</h2>
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="icon-circle" style="width:52px;height:52px;font-size:1.3rem;">
+                                <i class="bi bi-person"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold" style="font-size:1.05rem;">@fullName</div>
+                                @if (!string.IsNullOrWhiteSpace(seeker?.Email))
+                                {
+                                    <a href="mailto:@seeker.Email" class="small">@seeker.Email</a>
+                                }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(seeker?.ProfessionalSummary))
+                        {
+                            <p class="mb-2">@seeker.ProfessionalSummary</p>
+                        }
+                        <div class="d-flex flex-wrap gap-3 small text-muted">
+                            @if (!string.IsNullOrWhiteSpace(seeker?.LinkedInUrl))
+                            { <a href="@seeker.LinkedInUrl" target="_blank"><i class="bi bi-linkedin"></i> LinkedIn</a> }
+                            @if (!string.IsNullOrWhiteSpace(seeker?.GitHubUrl))
+                            { <a href="@seeker.GitHubUrl" target="_blank"><i class="bi bi-github"></i> GitHub</a> }
+                            @if (!string.IsNullOrWhiteSpace(Model.PortfolioLink))
+                            { <a href="@Model.PortfolioLink" target="_blank"><i class="bi bi-link-45deg"></i> Portfolio</a> }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h6 text-uppercase text-muted mb-3" style="letter-spacing:.06em;">Cover letter</h2>
+                    <p style="white-space: pre-line;" class="mb-0">@(string.IsNullOrWhiteSpace(Model.CoverLetter) ? "—" : Model.CoverLetter)</p>
+                    @if (!string.IsNullOrWhiteSpace(Model.AdditionalInfo))
+                    {
+                        <hr />
+                        <h3 class="h6 text-uppercase text-muted mb-2" style="letter-spacing:.06em;">Additional info</h3>
+                        <p style="white-space: pre-line;" class="mb-0">@Model.AdditionalInfo</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h6 text-uppercase text-muted mb-3" style="letter-spacing:.06em;">Details</h2>
+                    <dl class="mb-0 small">
+                        <dt class="text-muted fw-normal">Applied</dt>
+                        <dd>@Model.AppliedDate.ToString("MMM dd, yyyy")</dd>
+                        @if (Model.ExpectedSalary.HasValue)
+                        {
+                            <dt class="text-muted fw-normal mt-2">Expected salary</dt>
+                            <dd>@Model.ExpectedSalary.Value.ToString("C0")</dd>
+                        }
+                        @if (Model.AvailableStartDate.HasValue)
+                        {
+                            <dt class="text-muted fw-normal mt-2">Available from</dt>
+                            <dd>@Model.AvailableStartDate.Value.ToString("MMM dd, yyyy")</dd>
+                        }
+                        <dt class="text-muted fw-normal mt-2">Job</dt>
+                        <dd class="mb-0"><a asp-controller="Job" asp-action="Details" asp-route-id="@Model.JobPostingId">View job posting</a></dd>
+                    </dl>
+                </div>
+            </div>
+
+            @if (isEmployer && Model.Status == OnlineJobs.Domain.Enums.ApplicationStatus.Submitted)
+            {
+                <div class="card mt-3">
+                    <div class="card-body d-grid gap-2">
+                        <form asp-action="UpdateStatus" method="post" class="d-grid">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="status" value="accept" />
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Accept candidate</button>
+                        </form>
+                        <form asp-action="UpdateStatus" method="post" class="d-grid">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="status" value="review" />
+                            <button type="submit" class="btn btn-outline-primary"><i class="bi bi-eye"></i> Start review</button>
+                        </form>
+                        <form asp-action="UpdateStatus" method="post" class="d-grid">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@Model.Id" />
+                            <input type="hidden" name="status" value="reject" />
+                            <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

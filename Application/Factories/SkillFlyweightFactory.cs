@@ -1,74 +1,44 @@
+using System.Collections.Concurrent;
 using OnlineJobs.Domain.Flyweights;
 
 namespace OnlineJobs.Application.Factories
 {
-
+    /// <summary>
+    /// Flyweight factory: returns a single shared <see cref="SkillFlyweight"/> per
+    /// (name, category). Across thousands of jobs/candidates that all require "C#",
+    /// only one "C#" object exists in memory. Registered as a singleton; the
+    /// ConcurrentDictionary makes it thread-safe without explicit locks.
+    /// </summary>
     public class SkillFlyweightFactory
     {
-        private readonly Dictionary<string, SkillFlyweight> _skillPool;
-        private static readonly object _lock = new object();
+        private readonly ConcurrentDictionary<string, SkillFlyweight> _skillPool =
+            new(StringComparer.OrdinalIgnoreCase);
 
-        public SkillFlyweightFactory()
-        {
-            _skillPool = new Dictionary<string, SkillFlyweight>(StringComparer.OrdinalIgnoreCase);
-        }
-        
         public SkillFlyweight GetSkill(string name, string category = "General")
-        {
-            string key = GetKey(name, category);
+            => _skillPool.GetOrAdd(GetKey(name, category), _ => new SkillFlyweight(name, category));
 
-            lock (_lock)
-            {
-                if (!_skillPool.ContainsKey(key))
-                {
-                    _skillPool[key] = new SkillFlyweight(name, category);
-                }
+        /// <summary>Interns a batch of skill names, returning the shared flyweights.</summary>
+        public IReadOnlyList<SkillFlyweight> GetSkills(IEnumerable<string> names, string category = "General")
+            => names
+                .Select(n => n?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => GetSkill(n!, category))
+                .ToList();
 
-                return _skillPool[key];
-            }
-        }
+        public int GetPoolSize() => _skillPool.Count;
 
-
-        public int GetPoolSize()
-        {
-            lock (_lock)
-            {
-                return _skillPool.Count;
-            }
-        }
-
+        public void Clear() => _skillPool.Clear();
 
         public string GetPoolStatistics()
         {
-            lock (_lock)
-            {
-                var stats = $"Flyweight Pool Statistics:\n";
-                stats += $"  Total unique skills: {_skillPool.Count}\n";
-                stats += $"  Memory saved: Potentially {(_skillPool.Count * 100)} objects reduced to {_skillPool.Count}\n";
-                stats += $"\nSkills in pool:\n";
-
-                var grouped = _skillPool.Values.GroupBy(s => s.Category);
-                foreach (var group in grouped)
-                {
-                    stats += $"  [{group.Key}]: {string.Join(", ", group.Select(s => s.Name))}\n";
-                }
-
-                return stats;
-            }
+            var values = _skillPool.Values.ToList();
+            var grouped = values.GroupBy(s => s.Category)
+                .Select(g => $"  [{g.Key}]: {string.Join(", ", g.Select(s => s.Name))}");
+            return $"Flyweight pool: {values.Count} unique skills shared across all jobs/candidates\n"
+                   + string.Join("\n", grouped);
         }
 
-
-        public void Clear()
-        {
-            lock (_lock)
-            {
-                _skillPool.Clear();
-            }
-        }
-
-        private string GetKey(string name, string category)
-        {
-            return $"{name.ToLowerInvariant()}:{category.ToLowerInvariant()}";
-        }
+        private static string GetKey(string name, string category)
+            => $"{name.Trim().ToLowerInvariant()}:{category.Trim().ToLowerInvariant()}";
     }
 }

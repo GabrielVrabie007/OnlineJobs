@@ -8,7 +8,7 @@ namespace OnlineJobs.Application.Proxies
         private readonly RealApplicationListAccess _realAccess;
         private IEnumerable<JobApplication>? _cachedApplications;
         private bool _isLoaded = false;
-        private readonly object _lock = new object();
+        private readonly SemaphoreSlim _gate = new(1, 1);
 
         public ApplicationListVirtualProxy(RealApplicationListAccess realAccess)
         {
@@ -17,16 +17,23 @@ namespace OnlineJobs.Application.Proxies
 
         public async Task<IEnumerable<JobApplication>> GetApplicationsAsync()
         {
-            if (!_isLoaded)
+            if (_isLoaded)
+                return _cachedApplications ?? Enumerable.Empty<JobApplication>();
+
+            // Async-safe lazy load: first caller fetches, others await the same result,
+            // then every later access is served from cache (no .Result-under-lock deadlock).
+            await _gate.WaitAsync();
+            try
             {
-                lock (_lock)
+                if (!_isLoaded)
                 {
-                    if (!_isLoaded) // Double-check locking
-                    {
-                        _cachedApplications = _realAccess.GetApplicationsAsync().Result;
-                        _isLoaded = true;
-                    }
+                    _cachedApplications = await _realAccess.GetApplicationsAsync();
+                    _isLoaded = true;
                 }
+            }
+            finally
+            {
+                _gate.Release();
             }
 
             return _cachedApplications ?? Enumerable.Empty<JobApplication>();
@@ -64,10 +71,15 @@ namespace OnlineJobs.Application.Proxies
         /// </summary>
         public void Invalidate()
         {
-            lock (_lock)
+            _gate.Wait();
+            try
             {
                 _cachedApplications = null;
                 _isLoaded = false;
+            }
+            finally
+            {
+                _gate.Release();
             }
         }
     }

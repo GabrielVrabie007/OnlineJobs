@@ -17,7 +17,8 @@ namespace OnlineJobs.Application.Decorators
 
         private async Task SendEmail(string recipient, string subject, string message)
         {
-            // TODO: Integrate with actual email service (SendGrid, SMTP, etc.)
+            // Simulated external channel — swap for SendGrid/SMTP in production.
+            Console.WriteLine($"[Notify/Email] -> {recipient} | {subject}");
             await Task.CompletedTask;
         }
 

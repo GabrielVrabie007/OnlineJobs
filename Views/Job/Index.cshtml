@@ -14,20 +14,28 @@
             </h2>
 
             <!-- Search Bar -->
+            @{ var searchBy = (ViewBag.SearchBy as string) ?? "Title"; }
             <form method="get" asp-action="Index" class="card mb-3">
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <div class="input-group input-group-lg">
                                 <span class="input-group-text bg-white">
                                     <i class="bi bi-search"></i>
                                 </span>
-                                <input type="text" name="searchTerm" class="form-control" placeholder="Search by job title, company, or keyword..." value="@searchTerm" />
+                                <input type="text" name="searchTerm" class="form-control" placeholder="Search jobs..." value="@searchTerm" />
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <select name="searchBy" class="form-select form-select-lg" title="Search by">
+                                <option value="Title" selected="@(searchBy == "Title")">By title</option>
+                                <option value="Location" selected="@(searchBy == "Location")">By location</option>
+                                <option value="Category" selected="@(searchBy == "Category")">By category</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <button type="submit" class="btn btn-primary btn-lg w-100">
-                                <i class="bi bi-search"></i> Search Jobs
+                                <i class="bi bi-search"></i> Search
                             </button>
                         </div>
                     </div>

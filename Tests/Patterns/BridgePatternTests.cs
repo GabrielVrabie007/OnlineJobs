@@ -1,117 +1,76 @@
+using System.Text;
+using System.Text.Json;
 using OnlineJobs.Application.Reporting;
 using OnlineJobs.Application.Reporting.Exporters;
 using Xunit;
 
 namespace OnlineJobs.Tests.Patterns
 {
-
     public class BridgePatternTests
     {
-        [Fact]
-        public async Task PDFExporter_ShouldExportCorrectly()
+        private static ReportDocument SampleDocument()
         {
-            IReportExporter exporter = new PDFExporter();
-            var data = new Dictionary<string, object>
+            var doc = new ReportDocument { Title = "Test Report" };
+            doc.AddSummary("Total", "100");
+            doc.AddSummary("Average", "50");
+            doc.Columns.AddRange(new[] { "Name", "Count" });
+            doc.Rows.Add(new[] { "Alice", "42" });
+            doc.Rows.Add(new[] { "Bob, Jr.", "7" }); // comma to exercise CSV escaping
+            return doc;
+        }
+
+        [Fact]
+        public void PdfExporter_ProducesRealPdfBytes()
+        {
+            var bytes = new PDFExporter().Export(SampleDocument());
+            Assert.NotEmpty(bytes);
+            // PDF files start with "%PDF".
+            Assert.Equal("%PDF", Encoding.ASCII.GetString(bytes, 0, 4));
+        }
+
+        [Fact]
+        public void ExcelExporter_ProducesRealXlsxBytes()
+        {
+            var bytes = new ExcelExporter().Export(SampleDocument());
+            Assert.NotEmpty(bytes);
+            // .xlsx is a ZIP archive — starts with "PK".
+            Assert.Equal(0x50, bytes[0]);
+            Assert.Equal(0x4B, bytes[1]);
+        }
+
+        [Fact]
+        public void JsonExporter_ProducesValidJson()
+        {
+            var bytes = new JSONExporter().Export(SampleDocument());
+            var json = Encoding.UTF8.GetString(bytes);
+
+            using var parsed = JsonDocument.Parse(json); // throws if invalid → test fails
+            Assert.Equal("Test Report", parsed.RootElement.GetProperty("title").GetString());
+            Assert.Equal("100", parsed.RootElement.GetProperty("summary").GetProperty("Total").GetString());
+            Assert.Equal(2, parsed.RootElement.GetProperty("rows").GetArrayLength());
+        }
+
+        [Fact]
+        public void CsvExporter_EscapesAndIncludesRecords()
+        {
+            var bytes = new CSVExporter().Export(SampleDocument());
+            var csv = Encoding.UTF8.GetString(bytes);
+
+            Assert.Contains("Name,Count", csv);     // header row
+            Assert.Contains("Alice,42", csv);        // data row
+            Assert.Contains("\"Bob, Jr.\"", csv);    // comma value is quoted
+        }
+
+        [Fact]
+        public void AllExporters_ExposeFormatExtensionAndContentType()
+        {
+            var exporters = new IReportExporter[]
             {
-                { "Field1", "Value1" },
-                { "Field2", 123 }
+                new PDFExporter(), new ExcelExporter(), new JSONExporter(), new CSVExporter()
             };
-
-            var result = await exporter.ExportAsync("Test Report", data);
-
-            Assert.Contains("PDF", result);
-            Assert.Contains("Test Report", result);
-            Assert.Contains("Field1", result);
-        }
-
-        [Fact]
-        public async Task ExcelExporter_ShouldExportCorrectly()
-        {
-            // Arrange
-            IReportExporter exporter = new ExcelExporter();
-            var data = new Dictionary<string, object>
-            {
-                { "Total", 100 },
-                { "Average", 50 }
-            };
-
-            // Act
-            var result = await exporter.ExportAsync("Stats Report", data);
-
-            // Assert
-            Assert.Contains("Excel", result);
-            Assert.Contains("Stats Report", result);
-        }
-
-        [Fact]
-        public async Task JSONExporter_ShouldProduceValidJSON()
-        {
-            // Arrange
-            IReportExporter exporter = new JSONExporter();
-            var data = new Dictionary<string, object>
-            {
-                { "Name", "Test" },
-                { "Count", 42 }
-            };
-
-            // Act
-            var result = await exporter.ExportAsync("JSON Report", data);
-
-            // Assert
-            Assert.Contains("\"Name\"", result);
-            Assert.Contains("\"Count\"", result);
-            Assert.Contains("JSON Report", result);
-        }
-
-        [Fact]
-        public async Task CSVExporter_ShouldProduceCSV()
-        {
-            // Arrange
-            IReportExporter exporter = new CSVExporter();
-            var data = new Dictionary<string, object>
-            {
-                { "Header1", "ValueA" },
-                { "Header2", "ValueB" }
-            };
-
-            // Act
-            var result = await exporter.ExportAsync("CSV Report", data);
-
-            // Assert
-            Assert.Contains("\"Field\",\"Value\"", result);
-            Assert.Contains("Header1", result);
-        }
-
-        [Fact]
-        public void AllExporters_ShouldHaveCorrectFormat()
-        {
-            // Arrange & Act
-            var pdf = new PDFExporter();
-            var excel = new ExcelExporter();
-            var json = new JSONExporter();
-            var csv = new CSVExporter();
-
-            // Assert
-            Assert.Equal("PDF", pdf.Format);
-            Assert.Equal("Excel", excel.Format);
-            Assert.Equal("JSON", json.Format);
-            Assert.Equal("CSV", csv.Format);
-        }
-
-        [Fact]
-        public void AllExporters_ShouldHaveCorrectFileExtension()
-        {
-            // Arrange & Act
-            var pdf = new PDFExporter();
-            var excel = new ExcelExporter();
-            var json = new JSONExporter();
-            var csv = new CSVExporter();
-
-            // Assert
-            Assert.Equal(".pdf", pdf.FileExtension);
-            Assert.Equal(".xlsx", excel.FileExtension);
-            Assert.Equal(".json", json.FileExtension);
-            Assert.Equal(".csv", csv.FileExtension);
+            Assert.Equal(new[] { "PDF", "Excel", "JSON", "CSV" }, exporters.Select(e => e.Format));
+            Assert.Equal(new[] { ".pdf", ".xlsx", ".json", ".csv" }, exporters.Select(e => e.FileExtension));
+            Assert.All(exporters, e => Assert.False(string.IsNullOrWhiteSpace(e.ContentType)));
         }
     }
 }

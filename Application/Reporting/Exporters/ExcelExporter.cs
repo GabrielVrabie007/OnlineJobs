@@ -1,49 +1,62 @@
-using System.Text;
+using ClosedXML.Excel;
 
 namespace OnlineJobs.Application.Reporting.Exporters
 {
-
+    /// <summary>Bridge Implementor — a real .xlsx workbook (Summary + Records sheets).</summary>
     public class ExcelExporter : IReportExporter
     {
         public string Format => "Excel";
         public string FileExtension => ".xlsx";
+        public string ContentType => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-        public async Task<string> ExportAsync(string reportTitle, Dictionary<string, object> data)
+        public byte[] Export(ReportDocument document)
         {
-            return await Task.Run(() =>
+            using var workbook = new XLWorkbook();
+
+            // --- Summary sheet ---
+            var summary = workbook.Worksheets.Add("Summary");
+            summary.Cell(1, 1).Value = document.Title;
+            summary.Cell(1, 1).Style.Font.Bold = true;
+            summary.Cell(1, 1).Style.Font.FontSize = 16;
+            summary.Cell(2, 1).Value = $"Generated {document.GeneratedAt:yyyy-MM-dd HH:mm}";
+            summary.Cell(2, 1).Style.Font.FontColor = XLColor.Gray;
+
+            var r = 4;
+            foreach (var kvp in document.Summary)
             {
-                var sb = new StringBuilder();
+                summary.Cell(r, 1).Value = kvp.Key;
+                summary.Cell(r, 1).Style.Font.Bold = true;
+                summary.Cell(r, 2).Value = kvp.Value;
+                r++;
+            }
+            summary.Columns().AdjustToContents();
 
-                sb.AppendLine(GenerateHeader(reportTitle));
-                sb.AppendLine("\n[Excel Spreadsheet]");
-                sb.AppendLine("Row | Column A       | Column B");
-                sb.AppendLine("----+----------------+-----------------");
-
-                int row = 1;
-                foreach (var kvp in data)
+            // --- Records sheet ---
+            if (document.Columns.Count > 0)
+            {
+                var sheet = workbook.Worksheets.Add("Records");
+                for (var c = 0; c < document.Columns.Count; c++)
                 {
-                    sb.AppendLine($" {row++}  | {kvp.Key,-14} | {kvp.Value}");
+                    var cell = sheet.Cell(1, c + 1);
+                    cell.Value = document.Columns[c];
+                    cell.Style.Font.Bold = true;
+                    cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#0E1B2D");
+                    cell.Style.Font.FontColor = XLColor.White;
                 }
 
-                sb.AppendLine(GenerateFooter());
-                sb.AppendLine($"\n[Excel binary data - File: {reportTitle}{FileExtension}]");
+                for (var i = 0; i < document.Rows.Count; i++)
+                    for (var c = 0; c < document.Rows[i].Length; c++)
+                        sheet.Cell(i + 2, c + 1).Value = document.Rows[i][c];
 
-                return sb.ToString();
-            });
-        }
+                sheet.Range(1, 1, document.Rows.Count + 1, document.Columns.Count)
+                     .SetAutoFilter();
+                sheet.SheetView.FreezeRows(1);
+                sheet.Columns().AdjustToContents();
+            }
 
-        public string GenerateHeader(string title)
-        {
-            return $"╔══════════════════════════════════════════╗\n" +
-                   $"║ EXCEL REPORT: {title.PadRight(23)} ║\n" +
-                   $"╚══════════════════════════════════════════╝";
-        }
-
-        public string GenerateFooter()
-        {
-            return $"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-                   $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
-                   $"Format: Excel XLSX";
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            return stream.ToArray();
         }
     }
 }

@@ -46,11 +46,11 @@ public class JobApplicationFacade
             return ApplicationResult.Failed("Job seeker not found");
         }
 
+        // Incomplete profile is a nudge, not a blocker — like real job boards, the
+        // candidate can still apply but gets reminded to round out their profile.
         if (!jobSeeker.HasCompleteProfile())
         {
-            errors.Add("Profile is incomplete. Please add education, work experience, and skills.");
             await _notificationService.SendProfileCompletionReminderAsync(jobSeekerId);
-            return ApplicationResult.Failed("Profile incomplete", errors);
         }
 
         if (!jobSeeker.CanApplyToJobs())

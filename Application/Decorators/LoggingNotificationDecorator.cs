@@ -5,7 +5,8 @@ namespace OnlineJobs.Application.Decorators
 
     public class LoggingNotificationDecorator : NotificationDecorator
     {
-        private static readonly List<string> _notificationLog = new List<string>();
+        // Instance state (was a shared static list, which raced across requests).
+        private readonly List<string> _notificationLog = new List<string>();
 
         public LoggingNotificationDecorator(INotification notification) : base(notification)
         {
@@ -22,6 +23,7 @@ namespace OnlineJobs.Application.Decorators
         {
             var logEntry = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] Sending to: {recipient} | Subject: {subject}";
             _notificationLog.Add(logEntry);
+            Console.WriteLine($"[Notify/Log] {logEntry}");
         }
 
         private void LogCompletion(string recipient)
@@ -35,14 +37,6 @@ namespace OnlineJobs.Application.Decorators
             return base.GetDescription() + " + Logging";
         }
 
-        public static List<string> GetNotificationLog()
-        {
-            return new List<string>(_notificationLog);
-        }
-
-        public static void ClearLog()
-        {
-            _notificationLog.Clear();
-        }
+        public IReadOnlyList<string> GetNotificationLog() => _notificationLog.ToList();
     }
 }
